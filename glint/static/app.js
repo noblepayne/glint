@@ -273,7 +273,9 @@ if (aiForm) {
         if (!currentImage) return alert('Upload image first');
         const statusBox = document.getElementById('ai-result-params');
         showLoading(true);
-        if (statusBox) statusBox.textContent = "Gemma 4 analyzing...";
+        const selectedModelEl = document.getElementById('ai-vision-model');
+        const modelLabel = selectedModelEl?.options[selectedModelEl.selectedIndex]?.text || "AI";
+        if (statusBox) statusBox.textContent = `${modelLabel} analyzing...`;
         document.getElementById('ai-result')?.classList.remove('hidden');
         try {
             const resp = await fetch('/vision/auto-fix', {
@@ -308,8 +310,12 @@ if (aiForm) {
 const textPromptForm = document.getElementById('text-prompt-form');
 if (textPromptForm) {
     textPromptForm.onsubmit = async () => {
-        const prompt = document.getElementById('prompt-input')?.value;
+        const promptInput = document.getElementById('prompt-input');
+        const prompt = promptInput?.value;
+        const statusBox = document.getElementById('prompt-params-display');
         showLoading(true);
+        if (statusBox) statusBox.textContent = "Generating filter...";
+        document.getElementById('prompt-result')?.classList.remove('hidden');
         try {
             const resp = await fetch('/generate', {
                 method: 'POST',
@@ -322,24 +328,26 @@ if (textPromptForm) {
             });
             const data = await resp.json();
             generatedParams = data.params;
-            document.getElementById('prompt-params-display').textContent = JSON.stringify(data.params, null, 2);
-            document.getElementById('prompt-result')?.classList.remove('hidden');
+            
+            // Auto-apply to sliders immediately
+            currentParams = { ...currentParams, ...generatedParams };
+            lastAppliedParams = JSON.stringify(currentParams);
+            renderParams(currentParams);
+            updateApplyButtonState();
+            applyFilter();
+            updateURL();
+
+            if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
+        } catch (err) {
+            if (statusBox) statusBox.textContent = "Error: " + err.message;
         } finally {
             showLoading(false);
         }
     };
 }
 
-document.getElementById('apply-prompt-btn').onclick = () => {
-    if (generatedParams) {
-        currentParams = { ...currentParams, ...generatedParams };
-        lastAppliedParams = JSON.stringify(currentParams);
-        renderParams(currentParams);
-        updateApplyButtonState();
-        applyFilter();
-        updateURL();
-    }
-};
+// Remove old apply-prompt-btn handler as it's no longer in HTML
+// document.getElementById('apply-prompt-btn').onclick = ...
 
 // Unified Save Preset
 const savePromptBtn = document.getElementById('save-prompt-btn');

@@ -123,7 +123,7 @@ def generate_vision_params(
     body = {
         "model": model,
         "messages": messages,
-        "temperature": 0.7,
+        "temperature": 0.3,
         "max_tokens": 1000,
     }
 

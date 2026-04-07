@@ -14,7 +14,7 @@ DEFAULT_MODEL = "openrouter/openai/gpt-oss-20b"
 LLM_BASE_URL = "http://prism:8080/openai/v1"
 
 
-SYSTEM_PROMPT = """You are a color grading expert for image filters. Given a description 
+SYSTEM_PROMPT = """You are a pragmatic color grading expert. Given a description 
 of a desired photo look, respond with ONLY valid JSON matching this schema:
 
 {"contrast": float, "brightness": float, "saturation": float, 
@@ -24,14 +24,15 @@ of a desired photo look, respond with ONLY valid JSON matching this schema:
 
 Constraints:
 - contrast, saturation: 0.5 to 1.5 (default 1.0)
-- brightness: -0.2 to 0.2 (default 0.0)
+- brightness, highlights, shadows: -0.2 to 0.2 (default 0.0)
 - fade, grain, vignette: 0.0 to 0.5 (default 0.0)
 - temperature: -0.3 to 0.3 (default 0.0)
-- tint RGB offsets: -0.15 to 0.15 each (default 0.0)
-- highlights, shadows: -0.2 to 0.2 (default 0.0)
+- tint RGB offsets: -0.15 to 0.15 (default 0.0)
 
-Use default 1.0/0.0 values where not specified. Start conservative.
-Respond with ONLY valid JSON, no explanation, no markdown."""
+Rules:
+1. Respond with ONLY valid JSON. 
+2. Be conservative. Small changes lead to better professional results.
+3. No explanation or markdown."""
 
 USER_PROMPT_TEMPLATE = """Create filter parameters for: "{description}"
 
@@ -75,7 +76,7 @@ def generate_from_prompt(
     body = {
         "model": model,
         "messages": messages,
-        "temperature": 0.7,
+        "temperature": 0.3,
         "max_tokens": 500,
     }
 
