@@ -1,0 +1,85 @@
+this derivation will be built:
+  /nix/store/rdci2s3jd6ah32fdvh7m9wyp7yz7mlkm-glint-0.2.0.drv
+building '/nix/store/rdci2s3jd6ah32fdvh7m9wyp7yz7mlkm-glint-0.2.0.drv'...
+INFO:     Started server process [472704]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Starting server on 0.0.0.0:8000
+Open http://localhost:8000 in your browser
+INFO:     127.0.0.1:51598 - "GET /?v_model=openrouter%2Fgoogle%2Fgemma-4-31b-it&t_model=openrouter%2Fopenai%2Fgpt-oss-20b HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51598 - "GET /static/style.css HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51602 - "GET /static/app.js HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51602 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:32810 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32810 - "GET /filter/none HTTP/1.1" 200 OK
+INFO:     127.0.0.1:32810 - "POST /apply HTTP/1.1" 200 OK
+DEBUG: LLM returned empty content. Data: {'id': 'chatcmpl-7085ad34-8bc8-4abb-b95d-4a1a9939ca62', 'object': 'chat.completion', 'created': 1775545701, 'model': 'openrouter/openai/gpt-oss-20b', 'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': None, 'tool_calls': None}, 'finish_reason': 'stop'}], 'usage': {'prompt_tokens': 1033, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens': 500, 'completion_tokens_details': {'reasoning_tokens': 383, 'image_tokens': 0}, 'total_tokens': 1533, 'cost': {'total_cost': 0.00010099}}}
+INFO:     127.0.0.1:48402 - "POST /generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48402 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33874 - "POST /generate HTTP/1.1" 200 OK
+INFO:     127.0.0.1:33874 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42854 - "GET /filter/noir HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42854 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40396 - "GET /filter/none HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40396 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40396 - "GET /filter/dreamcore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:40396 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "POST /upload-lut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "POST /upload-lut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "POST /upload-lut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "POST /upload-lut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "POST /upload-lut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "POST /upload-lut HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "GET /?filter=dreamcore&v_model=openrouter%2Fgoogle%2Fgemini-3-flash-preview&t_model=openrouter%2Fopenai%2Fgpt-4o-mini&contrast=0.85&brightness=0.05&fade=0.35&grain=0.15&temperature=0.05&vibrance=0.20&clarity=-0.30&dehaze=-0.15 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:58092 - "GET /filter/dreamcore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48554 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48554 - "GET /filter/none HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48554 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48554 - "GET /filter/tokyo-night HTTP/1.1" 200 OK
+INFO:     127.0.0.1:48554 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "GET /filter/lark HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "GET /filter/gingham HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "GET /filter/moon HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "GET /filter/tri-x-pro HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "GET /filter/velvia-vivid HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "GET /filter/nordic-cool HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "GET /filter/forest-fog HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55606 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42072 - "GET /filter/tokyo-night HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42072 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42072 - "GET /filter/moon HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42072 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42072 - "GET /filter/gingham HTTP/1.1" 200 OK
+INFO:     127.0.0.1:42072 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "GET /?filter=gingham&v_model=openrouter%2Fgoogle%2Fgemini-3-flash-preview&t_model=openrouter%2Fopenai%2Fgpt-4o-mini&contrast=0.95&saturation=0.85&brightness=0.08&fade=0.15&temperature=0.06 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "GET /filter/gingham HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "POST /upload HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "GET /filter/none HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "GET /filter/nordic-cool HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "GET /filter/gingham HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "GET /filter/noir HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "GET /filter/ludwig HTTP/1.1" 200 OK
+INFO:     127.0.0.1:46032 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "GET /filter/desert-sun HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "GET /filter/tokyo-night HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "GET /filter/cyber-neon HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "GET /filter/dreamcore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "GET /filter/brutalist HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "POST /apply HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "GET /filter/dreamcore HTTP/1.1" 200 OK
+INFO:     127.0.0.1:36390 - "POST /apply HTTP/1.1" 200 OK

@@ -18,25 +18,24 @@
             <div class="grid">
                 <div>
                     <h2>1. Upload Image</h2>
-                    <form id="upload-form" enctype="multipart/form-data">
-                        <input type="file" id="image-input" name="file" accept="image/*" required>
-                        <button type="submit">Upload</button>
-                    </form>
-                    <p><small>Or paste an image (Ctrl+V / Cmd+V)</small></p>
-                </div>
-                <div>
-                    <h2>2. Import .cube LUT</h2>
                     <div class="grid">
-                        <input type="file" id="lut-input" accept=".cube">
-                        <fieldset>
-                            <label for="lut-is-log">
-                                <input type="checkbox" id="lut-is-log" name="lut-is-log" role="switch">
-                                Source is Log (S-Log3)
-                            </label>
-                        </fieldset>
-                        <button id="apply-lut-btn" class="outline">Apply .cube</button>
+                        <form id="upload-form" enctype="multipart/form-data">
+                            <input type="file" id="image-input" name="file" accept="image/*" required>
+                            <button type="submit">Upload</button>
+                        </form>
+                        <details>
+                            <summary class="outline secondary" style="font-size: 0.8rem;">Advanced: .cube LUT</summary>
+                            <div class="lut-import-box">
+                                <input type="file" id="lut-input" accept=".cube">
+                                <label for="lut-is-log">
+                                    <input type="checkbox" id="lut-is-log" name="lut-is-log" role="switch">
+                                    Source is S-Log3
+                                </label>
+                                <button id="apply-lut-btn" class="outline small">Apply LUT</button>
+                            </div>
+                        </details>
                     </div>
-                    <p><small>Directly apply a professional 3D LUT.</small></p>
+                    <p><small>Or paste/drop image/JSON.</small></p>
                 </div>
             </div>
         </section>
@@ -47,26 +46,34 @@
         </div>
 
         <section id="preview-section" class="hidden">
-            <div class="grid">
-                <div>
-                    <h2>2. Choose Filter</h2>
-                    <div class="filters-grid" id="filters-grid"></div>
-                </div>
-                <div>
-                    <h2>3. Save / Export</h2>
-                    <div id="unified-save-form">
-                        <input type="text" id="save-filter-name" placeholder="Preset name (e.g. My Look)...">
-                        <div class="grid">
-                            <button id="save-prompt-btn" class="secondary">Save as Preset</button>
-                            <button id="save-btn" class="outline">Download PNG</button>
-                        </div>
-                        <div class="grid" style="margin-top: 0.5rem;">
-                            <button id="copy-btn" class="outline secondary">Copy to Clipboard</button>
-                            <button id="download-params-btn" class="outline secondary">Download JSON</button>
-                            <button id="export-cube-btn" class="outline contrast">Export .cube</button>
-                        </div>
+            <header class="preview-header">
+                <div class="grid">
+                    <div>
+                        <h3>Filter & Style</h3>
+                    </div>
+                    <div style="text-align: right;">
+                        <details dropdown>
+                            <summary class="outline secondary">Save / Export</summary>
+                            <ul dir="rtl">
+                                <li>
+                                    <div class="export-menu">
+                                        <input type="text" id="save-filter-name" placeholder="Preset name...">
+                                        <button id="save-prompt-btn" class="secondary">Save as Preset</button>
+                                        <hr>
+                                        <button id="save-btn" class="outline">Download PNG</button>
+                                        <button id="copy-btn" class="outline secondary">Copy Image</button>
+                                        <button id="download-params-btn" class="outline secondary">Download JSON</button>
+                                        <button id="export-cube-btn" class="outline contrast">Export .cube</button>
+                                    </div>
+                                </li>
+                            </ul>
+                        </details>
                     </div>
                 </div>
+            </header>
+
+            <div class="filters-container">
+                <div class="filters-grid" id="filters-grid"></div>
             </div>
 
             <div class="preview-container">
