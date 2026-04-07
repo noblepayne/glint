@@ -605,7 +605,7 @@ document.getElementById('export-cube-btn').onclick = async () => {
 
 document.getElementById('download-params-btn').onclick = () => {
     const data = {
-        _v: "0.2.0",
+        _v: "0.2.1",
         name: currentFilter !== 'none' ? currentFilter : "Glint Preset",
         params: currentParams
     };

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "glint"
-version = "0.2.0"
+version = "0.2.1"
 description = "Traditional image filtering meets LLM and Vision styling."
 dependencies = [
     "numpy",

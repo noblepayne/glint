@@ -1,6 +1,6 @@
 # Glint Storage & Persistence Guide
 
-Glint v0.2.0 implements a **Bulletproof Persistence** system designed to work in standard local environments, Docker, and read-only Nix stores.
+Glint v0.2.1 implements a **Bulletproof Persistence** system designed to work in standard local environments, Docker, and read-only Nix stores.
 
 ## 1. Custom Filter Location
 

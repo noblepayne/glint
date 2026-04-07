@@ -9,6 +9,8 @@ Traditional image filtering meets iterative vision-guided styling. **Glint** is 
 *   **Functional Core**: Pure image transformations built on NumPy and PIL—deterministic, testable, and intentionally side-effect free.
 *   **The URL is the Source of Truth**: Every slider move and AI suggestion is encoded in the query string. Deep links work. Browser history works. No "state bleeding."
 *   **Universal Presets**: Save combinations of AI and manual tweaks as persistent presets or export as standard `.cube` 3D LUTs for Resolve or Premiere.
+*   **Smart Portability**: Download your look as a `.json` file and share it. Drag and drop any `.json` preset onto the workbench to instantly apply the look.
+*   **Advanced LUT Import**: Directly apply professional 3D LUTs (S-Log3 supported) via the advanced import accordion.
 *   **Pragmatic UX**: A minimalist Pico CSS interface with clipboard support and a "Super Response" live-preview toggle.
 
 ## Quick Start (Nix)
