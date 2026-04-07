@@ -186,37 +186,38 @@ def apply_sharpen(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64
     return np.clip(rgb * (1 - amount) + sharpened_arr * amount, 0, 1)
 
 
+def apply_lut_3d(
+    rgb: NDArray[np.float64], lut: NDArray[np.float64]
+) -> NDArray[np.float64]:
+    """
+    Apply a 3D LUT to an RGB array using PIL's optimized ColorLUT.
+    lut: array of shape (size^3, 3) or (size, size, size, 3)
+    """
+    size = int(round(lut.shape[0] ** (1 / 3))) if len(lut.shape) == 2 else lut.shape[0]
+    # PIL expects a flat list of floats
+    flat_lut = lut.reshape(-1).tolist()
+
+    from PIL import Image, ImageFilter
+
+    pil_img = Image.fromarray((rgb * 255).astype(np.uint8))
+    lut_filter = ImageFilter.ColorLUT(size, flat_lut)
+
+    result_pil = pil_img.filter(lut_filter)
+    return np.array(result_pil).astype(np.float64) / 255.0
+
+
 def apply_fade(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
     """
     Apply vintage fade effect.
-
-    This simulates the "memory" look - a soft, dreamy quality like a
-    faded photograph or a pleasant memory. It's like a subtle translucent
-    layer that lifts the blacks and flattens the dynamic range.
-
-    Key elements:
-    - Lifts blacks (adds to dark areas)
-    - Compresses highlights slightly
-    - Soft desaturation
-    - Very slight brightness boost in mids
     """
     if amount <= 0:
         return rgb
 
-    # 1. Lift blacks - like adding a subtle white/color layer
-    # The less amount, the less we lift
+    # Lifts blacks, compresses highlights, soft desaturation
     faded = rgb + (amount * 0.12)
-
-    # 2. Compress highlights - reduces dynamic range, gives that "flat" look
-    # Lift the curve at the top
     faded = np.power(np.clip(faded, 0.001, 1), 1 - (amount * 0.15))
-
-    # 3. Soft desaturation - not harsh, just muted
     gray = np.mean(faded, axis=2, keepdims=True)
     faded = gray + (faded - gray) * (1 - amount * 0.35)
-
-    # 4. Final softness - slight blur-like effect via smooth curve
-    # This helps the "dreamy" quality
     faded = np.power(np.clip(faded, 0.001, 1), 0.95 + (amount * 0.1))
 
     return np.clip(faded, 0, 1)
@@ -227,9 +228,6 @@ def apply_grain(
 ) -> NDArray[np.float64]:
     """
     Add film grain noise.
-
-    Uses Gaussian noise that scales with amount.
-    Seed is used to create a local random generator (pure).
     """
     if amount <= 0:
         return rgb
@@ -244,15 +242,11 @@ def apply_grain(
 def adjust_temperature(rgb: NDArray[np.float64], shift: float) -> NDArray[np.float64]:
     """
     Adjust color temperature.
-
-    Positive shift: warmer (more yellow/orange)
-    Negative shift: cooler (more blue)
     """
     if shift == 0:
         return rgb
 
     result = rgb.copy()
-
     if shift > 0:
         result[:, :, 0] = np.clip(result[:, :, 0] + shift * 0.15, 0, 1)
         result[:, :, 1] = np.clip(result[:, :, 1] + shift * 0.05, 0, 1)
@@ -268,12 +262,9 @@ def adjust_temperature(rgb: NDArray[np.float64], shift: float) -> NDArray[np.flo
 
 def apply_tint(rgb: NDArray[np.float64], tint: dict[str, float]) -> NDArray[np.float64]:
     """
-    Apply RGB tint offsets to specific channels.
-
-    tint: {'r': float, 'g': float, 'b': float} with values -0.3 to 0.3
+    Apply RGB tint offsets.
     """
     result = rgb.copy()
-
     if "r" in tint:
         result[:, :, 0] = np.clip(result[:, :, 0] + tint["r"], 0, 1)
     if "g" in tint:
@@ -286,19 +277,15 @@ def apply_tint(rgb: NDArray[np.float64], tint: dict[str, float]) -> NDArray[np.f
 
 def apply_vignette(rgb: NDArray[np.float64], strength: float) -> NDArray[np.float64]:
     """
-    Apply radial vignette (darker edges).
-
-    strength: 0 = no vignette, 1 = strong
+    Apply radial vignette.
     """
     if strength <= 0:
         return rgb
 
     h, w, _ = rgb.shape
     y, x = np.ogrid[:h, :w]
-
     cy, cx = h / 2, w / 2
     max_dist = np.sqrt(cy**2 + cx**2)
-
     dist = np.sqrt((y - cy) ** 2 + (x - cx) ** 2) / max_dist
     vignette = 1 - (dist**2) * strength
 
@@ -307,34 +294,26 @@ def apply_vignette(rgb: NDArray[np.float64], strength: float) -> NDArray[np.floa
 
 def adjust_highlights(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
     """
-    Adjust highlights (bright areas).
-
-    Positive: lift highlights
-    Negative: clip/lower highlights
+    Adjust highlights.
     """
     if amount == 0:
         return rgb
 
     lum = np.mean(rgb, axis=2, keepdims=True)
     mask = np.clip((lum - 0.5) * 2, 0, 1)
-
     adjustment = amount * 0.3 * mask
     return np.clip(rgb + adjustment, 0, 1)
 
 
 def adjust_shadows(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
     """
-    Adjust shadows (dark areas).
-
-    Positive: lift shadows
-    Negative: deepen shadows
+    Adjust shadows.
     """
     if amount == 0:
         return rgb
 
     lum = np.mean(rgb, axis=2, keepdims=True)
     mask = np.clip((0.5 - lum) * 2, 0, 1)
-
     adjustment = amount * 0.3 * mask
     return np.clip(rgb + adjustment, 0, 1)
 
@@ -343,9 +322,7 @@ def channel_mix(
     rgb: NDArray[np.float64], matrix: list[list[float]]
 ) -> NDArray[np.float64]:
     """
-    Apply a 3x3 matrix color transformation.
-
-    Useful for color grading (e.g., teal/orange split).
+    Apply a 3x3 matrix.
     """
     arr = rgb.reshape(-1, 3)
     mixed = arr @ np.array(matrix)
@@ -359,12 +336,9 @@ def color_grading(
     highlights: tuple[float, float, float] = (0, 0, 0),
 ) -> NDArray[np.float64]:
     """
-    Apply color grading to shadows, midtones, and highlights separately.
-
-    Each parameter is a 3-tuple of RGB offsets.
+    Apply color grading.
     """
     lum = np.mean(rgb, axis=2, keepdims=True)
-
     shadow_mask = np.clip((0.33 - lum) * 3, 0, 1)
     highlight_mask = np.clip((lum - 0.66) * 3, 0, 1)
     midtone_mask = np.clip(1 - shadow_mask - highlight_mask, 0, 1)

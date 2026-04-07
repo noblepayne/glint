@@ -15,12 +15,24 @@
         </hgroup>
 
         <section>
-            <h2>1. Upload Image</h2>
-            <form id="upload-form" enctype="multipart/form-data">
-                <input type="file" id="image-input" name="file" accept="image/*" required>
-                <button type="submit">Upload</button>
-            </form>
-            <p><small>Or paste an image (Ctrl+V / Cmd+V)</small></p>
+            <div class="grid">
+                <div>
+                    <h2>1. Upload Image</h2>
+                    <form id="upload-form" enctype="multipart/form-data">
+                        <input type="file" id="image-input" name="file" accept="image/*" required>
+                        <button type="submit">Upload</button>
+                    </form>
+                    <p><small>Or paste an image (Ctrl+V / Cmd+V)</small></p>
+                </div>
+                <div>
+                    <h2>2. Import .cube LUT</h2>
+                    <div class="grid">
+                        <input type="file" id="lut-input" accept=".cube">
+                        <button id="apply-lut-btn" class="outline">Apply .cube</button>
+                    </div>
+                    <p><small>Directly apply a professional 3D LUT.</small></p>
+                </div>
+            </div>
         </section>
 
         <div id="loading" class="hidden">

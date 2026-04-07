@@ -17,7 +17,9 @@ from PIL import Image
 
 from . import llm, vision
 from .apply import apply_to_image
-from .filters import FILTERS, get_filter, list_filters
+from .filters import get_filter, list_filters
+from .lut import load_cube
+from .core import apply_lut_3d
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,8 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 # Store uploaded images temporarily
 UPLOAD_DIR = Path("/tmp/glint-uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
+
+CUSTOM_FILTERS_PATH = Path(__file__).parent.parent / "custom_filters.json"
 
 
 def img_to_base64(img: Image.Image, format: str = "PNG") -> str:
@@ -51,7 +55,6 @@ def img_to_data_url(img: Image.Image, format: str = "PNG") -> str:
 async def index():
     """Main UI page."""
     filters = list_filters()
-    # Convert list of tuples to list of lists for JavaScript
     filters_json = [[name, desc] for name, desc in filters]
 
     index_path = static_dir / "index.html"
@@ -65,12 +68,10 @@ async def index():
 async def upload(file: UploadFile = File(...)) -> JSONResponse:
     """Handle image upload."""
     contents = await file.read()
-
     try:
 
         def process_upload():
             img = Image.open(io.BytesIO(contents)).convert("RGB")
-            # Resize for performance if too large
             max_size = 1200
             if max(img.size) > max_size:
                 ratio = max_size / max(img.size)
@@ -90,13 +91,10 @@ async def get_filter_params(name: str) -> JSONResponse:
     f = get_filter(name)
     if f is None:
         raise HTTPException(status_code=404, detail=f"Filter '{name}' not found")
-
-    # Return params without description/name for the UI
     result = {}
     for key, value in f.items():
         if key not in ("name", "description"):
             result[key] = value
-
     return JSONResponse(result)
 
 
@@ -105,10 +103,8 @@ async def apply_filter(request: dict) -> JSONResponse:
     """Apply filter to image."""
     image_data = request.get("image")
     params = request.get("params", {})
-
     if not image_data:
         raise HTTPException(status_code=400, detail="Image is required")
-
     try:
 
         def process_apply():
@@ -126,63 +122,92 @@ async def apply_filter(request: dict) -> JSONResponse:
         )
 
 
+@app.post("/upload-lut")
+async def upload_lut(file: UploadFile = File(...), image: str = None) -> JSONResponse:
+    """Handle .cube LUT upload and application."""
+    if not image:
+        raise HTTPException(status_code=400, detail="Image is required")
+
+    contents = await file.read()
+    with open("/tmp/temp.cube", "wb") as f:
+        f.write(contents)
+
+    try:
+
+        def process_lut():
+            lut_data = load_cube(Path("/tmp/temp.cube"))
+            header, b64data = image.split(",", 1)
+            img_bytes = base64.b64decode(b64data)
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+
+            # Convert image to array
+            from .apply import image_to_array, array_to_image
+
+            arr = image_to_array(img)
+            transformed = apply_lut_3d(arr, lut_data)
+            result_img = array_to_image(transformed)
+            return img_to_data_url(result_img, "PNG")
+
+        result_b64 = await run_in_threadpool(process_lut)
+        return JSONResponse({"image": result_b64})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"LUT application failed: {str(e)}")
+
+
 @app.post("/generate")
 async def generate_from_llm(request: dict) -> JSONResponse:
     """Generate filter parameters from LLM."""
     prompt = request.get("prompt", "")
     params = request.get("params", {})
     model = request.get("model", llm.DEFAULT_MODEL)
-
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required")
-
     try:
         params = await run_in_threadpool(
             llm.generate_from_prompt, prompt, params, model
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
-
     return JSONResponse({"params": params})
 
 
 @app.post("/save-filter")
 async def save_filter(request: dict) -> JSONResponse:
-    """Save a custom filter."""
+    """Save a custom filter persistently to custom_filters.json."""
     name = request.get("name", "").strip()
     params = request.get("params", {})
-
     if not name:
         raise HTTPException(status_code=400, detail="Filter name is required")
 
-    # Add to FILTERS dict in memory
     filter_id = name.lower().replace(" ", "-")
-    FILTERS[filter_id] = {"name": name, "description": "Custom filter", **params}
+    entry = {"name": name, "description": "Custom filter", **params}
 
-    # Persist to filters.py
     try:
-        filters_file = Path(__file__).parent / "filters.py"
-        with open(filters_file, "r") as f:
-            lines = f.readlines()
+        import os
+        import tempfile
 
-        end_idx = -1
-        for i, line in enumerate(reversed(lines)):
-            if "}" in line and i < 5:
-                end_idx = len(lines) - 1 - i
-                break
+        custom = {}
+        if CUSTOM_FILTERS_PATH.exists():
+            with open(CUSTOM_FILTERS_PATH, "r") as f:
+                custom = json.load(f)
 
-        if end_idx != -1:
-            entry_params = params.copy()
-            entry_params["name"] = name
-            entry_params["description"] = "Custom filter"
-            new_entry = f'    "{filter_id}": {json.dumps(entry_params, indent=8).strip()[:-1]}    }},\n'
-            lines.insert(end_idx, new_entry)
-            with open(filters_file, "w") as f:
-                f.writelines(lines)
+        custom[filter_id] = entry
+
+        # Atomic write to prevent corruption
+        fd, temp_path = tempfile.mkstemp(dir=CUSTOM_FILTERS_PATH.parent, suffix=".json")
+        try:
+            with os.fdopen(fd, "w") as f:
+                json.dump(custom, f, indent=4)
+            os.replace(temp_path, CUSTOM_FILTERS_PATH)
+        except Exception:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise
+
+        return JSONResponse({"status": "saved", "name": name, "id": filter_id})
     except Exception as e:
         logger.error(f"Failed to persist filter: {e}")
-
-    return JSONResponse({"status": "saved", "name": name, "id": filter_id})
+        raise HTTPException(status_code=500, detail=f"Failed to save filter: {str(e)}")
 
 
 @app.post("/export-cube")
@@ -194,7 +219,6 @@ async def export_cube(request: dict) -> JSONResponse:
 
     with tempfile.NamedTemporaryFile(suffix=".cube", delete=False) as tmp:
         tmp_path = Path(tmp.name)
-
     try:
         await run_in_threadpool(save_cube, params, tmp_path)
         with open(tmp_path, "rb") as f:
@@ -219,17 +243,14 @@ async def vision_auto_fix(request: dict) -> JSONResponse:
     focus = request.get("focus", "pop")
     user_prompt = request.get("prompt")
     model = request.get("model")
-
     if not image_data:
         raise HTTPException(status_code=400, detail="Image is required")
-
     try:
 
         def process_vision():
             header, b64data = image_data.split(",", 1)
             img_bytes = base64.b64decode(b64data)
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-
             params = vision.auto_fix(
                 img,
                 max_rounds=max_rounds,
@@ -237,7 +258,6 @@ async def vision_auto_fix(request: dict) -> JSONResponse:
                 user_prompt=user_prompt,
                 model=model if model else vision.DEFAULT_MODEL,
             )
-
             result_img = apply_to_image(img, params)
             result_b64 = img_to_data_url(result_img, "PNG")
             return params, result_b64
@@ -254,7 +274,6 @@ async def vision_refine(request: dict) -> JSONResponse:
     image_data = request.get("image")
     max_rounds = request.get("max_rounds", 3)
     focus = request.get("focus", "initial")
-
     try:
 
         def process_refine():

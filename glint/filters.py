@@ -2,6 +2,8 @@
 Pre-built filter presets refined with Pro-Pop levers.
 """
 
+import json
+from pathlib import Path
 from .types import FilterParams
 
 FILTERS: dict[str, FilterParams] = {
@@ -168,12 +170,40 @@ FILTERS: dict[str, FilterParams] = {
 }
 
 
+def _load_custom_filters() -> dict[str, FilterParams]:
+    """Internal helper to load custom filters from disk."""
+    custom_path = Path(__file__).parent.parent / "custom_filters.json"
+    if custom_path.exists():
+        try:
+            with open(custom_path, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+    return {}
+
+
 def list_filters() -> list[tuple[str, str]]:
     """Return list of (name, description) tuples."""
-    items = list(FILTERS.items())
+    # Start with a copy of built-in filters
+    all_filters = FILTERS.copy()
+
+    # Merge custom filters
+    custom = _load_custom_filters()
+    all_filters.update(custom)
+
+    # Ensure "none" is always first for identity-first reset behavior
+    items = list(all_filters.items())
     return [(k, v.get("description", "")) for k, v in items]
 
 
 def get_filter(name: str) -> FilterParams | None:
     """Get filter by name, returns None if not found."""
-    return FILTERS.get(name.lower())
+    name_low = name.lower()
+
+    # Priority 1: Built-in filters
+    if name_low in FILTERS:
+        return FILTERS[name_low]
+
+    # Priority 2: Custom filters from disk
+    custom = _load_custom_filters()
+    return custom.get(name_low)

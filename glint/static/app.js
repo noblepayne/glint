@@ -27,7 +27,7 @@ function buildFiltersGrid() {
         btn.textContent = name;
         btn.title = desc;
         btn.onclick = () => selectFilter(name);
-        if (name === currentFilter) btn.classList.add('active');
+        if (name.toLowerCase() === currentFilter.toLowerCase()) btn.classList.add('active');
         grid.appendChild(btn);
     });
 }
@@ -57,6 +57,10 @@ function updateURL() {
 
         const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.pushState({ filter: currentFilter, params: { ...currentParams } }, '', newURL);
+        
+        // localStorage Safety
+        localStorage.setItem('glint_current_params', JSON.stringify(currentParams));
+        localStorage.setItem('glint_current_filter', currentFilter);
     }, 250);
 }
 
@@ -73,7 +77,22 @@ window.onpopstate = function(event) {
 
 async function loadFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
-    const filterName = urlParams.get('filter') || 'none';
+    let filterName = urlParams.get('filter');
+    
+    // Fallback to localStorage if URL is clean
+    if (!filterName) {
+        const storedParams = localStorage.getItem('glint_current_params');
+        const storedFilter = localStorage.getItem('glint_current_filter');
+        if (storedParams) {
+            currentParams = JSON.parse(storedParams);
+            currentFilter = storedFilter || 'none';
+            renderParams(currentParams);
+            lastAppliedParams = JSON.stringify(currentParams);
+            updateApplyButtonState();
+            return; // Exit early, we loaded from storage
+        }
+        filterName = 'none';
+    }
     
     currentParams = { 
         contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, 
@@ -135,6 +154,34 @@ if (uploadForm) {
             await selectFilter('none');
         } catch (err) {
             console.error('Upload failed:', err);
+        } finally {
+            showLoading(false);
+        }
+    };
+}
+
+// .cube LUT Loading
+const lutInput = document.getElementById('lut-input');
+const applyLutBtn = document.getElementById('apply-lut-btn');
+if (applyLutBtn) {
+    applyLutBtn.onclick = async () => {
+        if (!currentImage) return;
+        const file = lutInput?.files[0];
+        if (!file) return;
+        
+        showLoading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('image', currentImage);
+        
+        try {
+            const resp = await fetch('/upload-lut', { method: 'POST', body: formData });
+            const data = await resp.json();
+            const img = document.getElementById('filtered-img');
+            if (img) img.src = data.image;
+            console.info(".cube LUT applied successfully");
+        } catch (err) {
+            console.error('LUT application failed:', err);
         } finally {
             showLoading(false);
         }
@@ -415,9 +462,12 @@ if (savePromptBtn) {
             body: JSON.stringify({ name, params: currentParams })
         });
         if (resp.ok) {
+            const data = await resp.json();
             nameInput.value = '';
-            filters.push([name, 'Custom']);
+            // Add to UI grid immediately
+            filters.push([name, 'Custom filter']);
             buildFiltersGrid();
+            console.info("Preset saved successfully");
         }
     };
 }

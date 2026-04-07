@@ -20,6 +20,7 @@ from .apply import (
     array_to_image,
 )
 from .lut import save_cube, generate_cube
+from .core import apply_lut_3d
 from . import llm
 from .blend import blend_filters, blend_images
 
@@ -43,6 +44,7 @@ __all__ = [
     "array_to_image",
     "save_cube",
     "generate_cube",
+    "apply_lut_3d",
     "llm",
     "blend_filters",
     "blend_images",
