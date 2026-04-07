@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from jinja2 import Template
@@ -66,20 +67,21 @@ async def upload(file: UploadFile = File(...)) -> JSONResponse:
     contents = await file.read()
 
     try:
-        img = Image.open(io.BytesIO(contents)).convert("RGB")
+
+        def process_upload():
+            img = Image.open(io.BytesIO(contents)).convert("RGB")
+            # Resize for performance if too large
+            max_size = 1200
+            if max(img.size) > max_size:
+                ratio = max_size / max(img.size)
+                new_size = (int(img.width * ratio), int(img.height * ratio))
+                img = img.resize(new_size, Image.Resampling.LANCZOS)
+            return img_to_data_url(img, "PNG")
+
+        image_b64 = await run_in_threadpool(process_upload)
+        return JSONResponse({"image": image_b64})
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid image: {str(e)}")
-
-    # Resize for performance if too large
-    max_size = 1200
-    if max(img.size) > max_size:
-        ratio = max_size / max(img.size)
-        new_size = (int(img.width * ratio), int(img.height * ratio))
-        img = img.resize(new_size, Image.Resampling.LANCZOS)
-
-    image_b64 = img_to_data_url(img, "PNG")
-
-    return JSONResponse({"image": image_b64})
 
 
 @app.get("/filter/{name}")
@@ -107,36 +109,37 @@ async def apply_filter(request: dict) -> JSONResponse:
     if not image_data:
         raise HTTPException(status_code=400, detail="Image is required")
 
-    # Decode base64 image
     try:
-        header, b64data = image_data.split(",", 1)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid image format")
 
-    img_bytes = base64.b64decode(b64data)
-    img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+        def process_apply():
+            header, b64data = image_data.split(",", 1)
+            img_bytes = base64.b64decode(b64data)
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            result_img = apply_to_image(img, params)
+            return img_to_data_url(result_img, "PNG")
 
-    # Apply filter
-    result_img = apply_to_image(img, params)
-
-    # Return as base64
-    result_b64 = img_to_data_url(result_img, "PNG")
-
-    return JSONResponse({"image": result_b64})
+        result_b64 = await run_in_threadpool(process_apply)
+        return JSONResponse({"image": result_b64})
+    except Exception as e:
+        raise HTTPException(
+            status_code=400, detail=f"Filter application failed: {str(e)}"
+        )
 
 
 @app.post("/generate")
 async def generate_from_llm(request: dict) -> JSONResponse:
     """Generate filter parameters from LLM."""
     prompt = request.get("prompt", "")
-    params = request.get("params", {})  # Get current params from UI
+    params = request.get("params", {})
     model = request.get("model", llm.DEFAULT_MODEL)
 
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt is required")
 
     try:
-        params = llm.generate_from_prompt(prompt, current_params=params, model=model)
+        params = await run_in_threadpool(
+            llm.generate_from_prompt, prompt, params, model
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM error: {str(e)}")
 
@@ -152,9 +155,6 @@ async def save_filter(request: dict) -> JSONResponse:
     if not name:
         raise HTTPException(status_code=400, detail="Filter name is required")
 
-    if not params:
-        raise HTTPException(status_code=400, detail="Filter params are required")
-
     # Add to FILTERS dict in memory
     filter_id = name.lower().replace(" ", "-")
     FILTERS[filter_id] = {"name": name, "description": "Custom filter", **params}
@@ -165,27 +165,22 @@ async def save_filter(request: dict) -> JSONResponse:
         with open(filters_file, "r") as f:
             lines = f.readlines()
 
-        # Find the end of the FILTERS dict
         end_idx = -1
         for i, line in enumerate(reversed(lines)):
-            if "}" in line and i < 5:  # Should be near the end of the dict
+            if "}" in line and i < 5:
                 end_idx = len(lines) - 1 - i
                 break
 
         if end_idx != -1:
-            # Prepare the new entry
             entry_params = params.copy()
             entry_params["name"] = name
             entry_params["description"] = "Custom filter"
             new_entry = f'    "{filter_id}": {json.dumps(entry_params, indent=8).strip()[:-1]}    }},\n'
-
             lines.insert(end_idx, new_entry)
-
             with open(filters_file, "w") as f:
                 f.writelines(lines)
     except Exception as e:
         logger.error(f"Failed to persist filter: {e}")
-        # We still return success since it's in memory for the current session
 
     return JSONResponse({"status": "saved", "name": name, "id": filter_id})
 
@@ -194,9 +189,6 @@ async def save_filter(request: dict) -> JSONResponse:
 async def export_cube(request: dict) -> JSONResponse:
     """Export filter parameters as a .cube LUT file (base64)."""
     params = request.get("params", {})
-    if not params:
-        raise HTTPException(status_code=400, detail="Params are required")
-
     from .lut import save_cube
     import tempfile
 
@@ -204,7 +196,7 @@ async def export_cube(request: dict) -> JSONResponse:
         tmp_path = Path(tmp.name)
 
     try:
-        save_cube(params, tmp_path)
+        await run_in_threadpool(save_cube, params, tmp_path)
         with open(tmp_path, "rb") as f:
             cube_data = base64.b64encode(f.read()).decode()
         return JSONResponse({"cube": cube_data, "filename": "filter.cube"})
@@ -232,65 +224,53 @@ async def vision_auto_fix(request: dict) -> JSONResponse:
         raise HTTPException(status_code=400, detail="Image is required")
 
     try:
-        header, b64data = image_data.split(",", 1)
-        img_bytes = base64.b64decode(b64data)
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-        params = vision.auto_fix(
-            img,
-            max_rounds=max_rounds,
-            focus=focus,
-            user_prompt=user_prompt,
-            model=model if model else vision.DEFAULT_MODEL,
-        )
+        def process_vision():
+            header, b64data = image_data.split(",", 1)
+            img_bytes = base64.b64decode(b64data)
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-        result_img = apply_to_image(img, params)
-        result_b64 = img_to_data_url(result_img, "PNG")
+            params = vision.auto_fix(
+                img,
+                max_rounds=max_rounds,
+                focus=focus,
+                user_prompt=user_prompt,
+                model=model if model else vision.DEFAULT_MODEL,
+            )
 
-        return JSONResponse(
-            {
-                "params": params,
-                "image": result_b64,
-            }
-        )
+            result_img = apply_to_image(img, params)
+            result_b64 = img_to_data_url(result_img, "PNG")
+            return params, result_b64
+
+        params, result_b64 = await run_in_threadpool(process_vision)
+        return JSONResponse({"params": params, "image": result_b64})
     except Exception as e:
-        import traceback
-
-        error_detail = f"{type(e).__name__}: {str(e)}\n{traceback.format_exc()}"
-        print(f"VISION ERROR DEBUG:\n{error_detail}")
         raise HTTPException(status_code=500, detail=f"Vision error: {str(e)}")
 
 
 @app.post("/vision/refine")
 async def vision_refine(request: dict) -> JSONResponse:
-    """Run iterative refinement with Gemma 4."""
+    """Run iterative refinement."""
     image_data = request.get("image")
     max_rounds = request.get("max_rounds", 3)
     focus = request.get("focus", "initial")
 
-    if not image_data:
-        raise HTTPException(status_code=400, detail="Image is required")
-
     try:
-        header, b64data = image_data.split(",", 1)
-        img_bytes = base64.b64decode(b64data)
-        img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-        final_params, history = vision.iterative_refine(
-            img,
-            max_rounds=max_rounds,
-            focus=focus,
-        )
+        def process_refine():
+            header, b64data = image_data.split(",", 1)
+            img_bytes = base64.b64decode(b64data)
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            final_params, history = vision.iterative_refine(
+                img, max_rounds=max_rounds, focus=focus
+            )
+            result_img = apply_to_image(img, final_params)
+            result_b64 = img_to_data_url(result_img, "PNG")
+            return final_params, history, result_b64
 
-        result_img = apply_to_image(img, final_params)
-        result_b64 = img_to_data_url(result_img, "PNG")
-
+        final_params, history, result_b64 = await run_in_threadpool(process_refine)
         return JSONResponse(
-            {
-                "final_params": final_params,
-                "history": history,
-                "image": result_b64,
-            }
+            {"final_params": final_params, "history": history, "image": result_b64}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vision error: {str(e)}")

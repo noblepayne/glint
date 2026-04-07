@@ -10,9 +10,12 @@ let generatedParams = null;
 let updateTimer = null;
 let applyTimer = null;
 
+// Concurrency control
+let applyController = null;
+let aiController = null;
+
 const filters = window.GLINT_FILTERS || [];
 
-// Build filters grid
 function buildFiltersGrid() {
     const grid = document.getElementById('filters-grid');
     if (!grid) return;
@@ -28,14 +31,12 @@ function buildFiltersGrid() {
     });
 }
 
-// URL State Management
 function updateURL() {
     clearTimeout(updateTimer);
     updateTimer = setTimeout(() => {
         const params = new URLSearchParams();
         if (currentFilter && currentFilter !== 'none') params.set('filter', currentFilter);
         
-        // Sync AI model selections and Auto-Apply to URL
         const visionModel = document.getElementById('ai-vision-model')?.value;
         const textModel = document.getElementById('ai-text-model')?.value;
         if (visionModel) params.set('v_model', visionModel);
@@ -79,7 +80,6 @@ async function loadFromURL() {
         }
     }
     
-    // Default to true unless explicitly '0'
     const autoParam = urlParams.get('auto');
     autoApply = autoParam !== '0';
     const sw = document.getElementById('auto-apply-switch');
@@ -101,17 +101,14 @@ async function loadFromURL() {
     buildFiltersGrid();
     renderParams(currentParams);
     
-    // Set initial lastAppliedParams to match the loaded state
     lastAppliedParams = JSON.stringify(currentParams);
     updateApplyButtonState();
 
     if (currentImage) applyFilter();
 }
 
-// Global Form Prevention
 document.addEventListener('submit', (e) => e.preventDefault(), true);
 
-// Upload handling
 const uploadForm = document.getElementById('upload-form');
 if (uploadForm) {
     uploadForm.onsubmit = async () => {
@@ -135,7 +132,6 @@ if (uploadForm) {
     };
 }
 
-// Paste handling
 document.addEventListener('paste', async (e) => {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -162,7 +158,6 @@ document.addEventListener('paste', async (e) => {
     }
 });
 
-// Filter selection
 async function selectFilter(name, push = true) {
     currentFilter = name;
     document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -246,15 +241,22 @@ function updateApplyButtonState() {
 
 async function applyFilter() {
     if (!currentImage) return;
+    
+    if (applyController) applyController.abort();
+    applyController = new AbortController();
+
     const img = document.getElementById('filtered-img');
     if (img) img.classList.add('loading');
+    
     lastAppliedParams = JSON.stringify(currentParams);
     updateApplyButtonState();
+    
     try {
         const resp = await fetch('/apply', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: currentImage, params: currentParams })
+            body: JSON.stringify({ image: currentImage, params: currentParams }),
+            signal: applyController.signal
         });
         const data = await resp.json();
         if (img) {
@@ -262,20 +264,26 @@ async function applyFilter() {
             img.src = data.image;
         }
     } catch (err) {
+        if (err.name === 'AbortError') return;
         if (img) img.classList.remove('loading');
     }
 }
 
-// AI Vision
 const aiForm = document.getElementById('ai-form');
 if (aiForm) {
     aiForm.onsubmit = async () => {
         if (!currentImage) return alert('Upload image first');
+        
+        if (aiController) aiController.abort();
+        aiController = new AbortController();
+
         const statusBox = document.getElementById('ai-result-params');
         showLoading(true);
+        
         const selectedModelEl = document.getElementById('ai-vision-model');
         const modelLabel = selectedModelEl?.options[selectedModelEl.selectedIndex]?.text || "AI";
         if (statusBox) statusBox.textContent = `${modelLabel} analyzing...`;
+        
         document.getElementById('ai-result')?.classList.remove('hidden');
         try {
             const resp = await fetch('/vision/auto-fix', {
@@ -287,10 +295,10 @@ if (aiForm) {
                     focus: document.getElementById('ai-focus')?.value,
                     model: document.getElementById('ai-vision-model')?.value,
                     max_rounds: parseInt(document.getElementById('ai-rounds')?.value || "3")
-                })
+                }),
+                signal: aiController.signal
             });
             const data = await resp.json();
-            // Merge AI params into current state
             currentParams = { ...currentParams, ...data.params };
             lastAppliedParams = JSON.stringify(currentParams);
             renderParams(currentParams);
@@ -299,6 +307,7 @@ if (aiForm) {
             updateURL();
             if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
         } catch (err) {
+            if (err.name === 'AbortError') return;
             if (statusBox) statusBox.textContent = "Error: " + err.message;
         } finally {
             showLoading(false);
@@ -306,10 +315,12 @@ if (aiForm) {
     };
 }
 
-// Text to Filter
 const textPromptForm = document.getElementById('text-prompt-form');
 if (textPromptForm) {
     textPromptForm.onsubmit = async () => {
+        if (aiController) aiController.abort();
+        aiController = new AbortController();
+
         const promptInput = document.getElementById('prompt-input');
         const prompt = promptInput?.value;
         const statusBox = document.getElementById('prompt-params-display');
@@ -324,12 +335,12 @@ if (textPromptForm) {
                     prompt, 
                     params: currentParams,
                     model: document.getElementById('ai-text-model')?.value
-                })
+                }),
+                signal: aiController.signal
             });
             const data = await resp.json();
             generatedParams = data.params;
             
-            // Auto-apply to sliders immediately
             currentParams = { ...currentParams, ...generatedParams };
             lastAppliedParams = JSON.stringify(currentParams);
             renderParams(currentParams);
@@ -339,6 +350,7 @@ if (textPromptForm) {
 
             if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
         } catch (err) {
+            if (err.name === 'AbortError') return;
             if (statusBox) statusBox.textContent = "Error: " + err.message;
         } finally {
             showLoading(false);
@@ -346,10 +358,6 @@ if (textPromptForm) {
     };
 }
 
-// Remove old apply-prompt-btn handler as it's no longer in HTML
-// document.getElementById('apply-prompt-btn').onclick = ...
-
-// Unified Save Preset
 const savePromptBtn = document.getElementById('save-prompt-btn');
 const nameInput = document.getElementById('save-filter-name');
 if (savePromptBtn) {
@@ -370,7 +378,6 @@ if (savePromptBtn) {
     };
 }
 
-// Utils
 document.querySelectorAll('.style-chip').forEach(chip => {
     chip.onclick = () => {
         const p = chip.dataset.style;
@@ -413,7 +420,6 @@ function showLoading(show) {
     document.getElementById('loading')?.classList.toggle('hidden', !show);
 }
 
-// Keyboard Shortcuts
 document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault();
@@ -421,7 +427,6 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// Boot
 const autoApplySwitch = document.getElementById('auto-apply-switch');
 if (autoApplySwitch) {
     autoApplySwitch.onchange = (e) => {
