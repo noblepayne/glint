@@ -248,9 +248,6 @@ async function applyFilter() {
     const img = document.getElementById('filtered-img');
     if (img) img.classList.add('loading');
     
-    lastAppliedParams = JSON.stringify(currentParams);
-    updateApplyButtonState();
-    
     try {
         const resp = await fetch('/apply', {
             method: 'POST',
@@ -263,6 +260,8 @@ async function applyFilter() {
             img.onload = () => img.classList.remove('loading');
             img.src = data.image;
         }
+        lastAppliedParams = JSON.stringify(currentParams);
+        updateApplyButtonState();
     } catch (err) {
         if (err.name === 'AbortError') return;
         if (img) img.classList.remove('loading');
@@ -300,9 +299,7 @@ if (aiForm) {
             });
             const data = await resp.json();
             currentParams = { ...currentParams, ...data.params };
-            lastAppliedParams = JSON.stringify(currentParams);
             renderParams(currentParams);
-            updateApplyButtonState();
             await applyFilter();
             updateURL();
             if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
@@ -342,10 +339,8 @@ if (textPromptForm) {
             generatedParams = data.params;
             
             currentParams = { ...currentParams, ...generatedParams };
-            lastAppliedParams = JSON.stringify(currentParams);
             renderParams(currentParams);
-            updateApplyButtonState();
-            applyFilter();
+            await applyFilter();
             updateURL();
 
             if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
