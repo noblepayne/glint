@@ -1,22 +1,22 @@
-# ✨ Glint
+# Glint
 
-Traditional image filtering meets LLM and Vision styling. **Glint** is a professional-grade image processing pipeline that combines pure functional color science with iterative AI refinement.
+Traditional image filtering meets iterative vision-guided styling. **Glint** is a professional-grade image processing pipeline that combines pure functional color science with iterative AI refinement.
 
-## 🚀 Key Features
+## Key Features
 
-*   **Iterative Vision Loops**: Use Gemma 4 to analyze your photo and automatically calculate optimal filter parameters over 1–5 refinement rounds.
-*   **Prompt-to-Filter**: Describe a look (e.g., "70s moody film grain") and have an LLM generate the underlying color science.
-*   **Functional Core**: Pure image transformations built on NumPy and PIL—reliable, testable, and fast.
-*   **State-in-URL**: Every tweak, slider move, or AI suggestion is encoded in the URL. Share your exact looks with deep links and enjoy full Back/Forward browser support.
-*   **Universal Presets**: Save any combination of AI and manual tweaks as a persistent preset or export as a standard `.cube` 3D LUT.
-*   **Pro UX**: Minimalist Pico CSS interface with clipboard support (Ctrl+V to paste, Copy to clipboard).
+*   **Iterative Vision Loops**: Uses Gemini/Gemma to analyze photos and calculate optimal filter parameters over discrete refinement rounds. It sees the image, evaluates the histogram, and adjusts.
+*   **Prompt-to-Filter**: Describe a look (e.g., "70s moody film grain") and have an LLM derive the underlying color science.
+*   **Functional Core**: Pure image transformations built on NumPy and PIL—deterministic, testable, and intentionally side-effect free.
+*   **The URL is the Source of Truth**: Every slider move and AI suggestion is encoded in the query string. Deep links work. Browser history works. No "state bleeding."
+*   **Universal Presets**: Save combinations of AI and manual tweaks as persistent presets or export as standard `.cube` 3D LUTs for Resolve or Premiere.
+*   **Pragmatic UX**: A minimalist Pico CSS interface with clipboard support and a "Super Response" live-preview toggle.
 
-## 🛠 Quick Start (Nix)
+## Quick Start (Nix)
 
 Glint is designed for modern development with [Nix Flakes](https://nixos.wiki/wiki/Flakes).
 
 ```bash
-# Enter the developer shell (includes all Python deps, ruff, black, pytest)
+# Enter the developer shell
 nix develop
 
 # Start the Web UI
@@ -29,9 +29,7 @@ nix run . -- list
 nix run . -- auto-fix input.jpg output.png --rounds 3 --focus pop
 ```
 
-## 📖 CLI Usage
-
-Glint provides a robust command-line interface for batch processing and experimentation.
+## CLI Usage
 
 *   `glint list`: List all built-in and custom filters.
 *   `glint apply <filter> <input> -o <output>`: Apply a preset to an image.
@@ -39,17 +37,17 @@ Glint provides a robust command-line interface for batch processing and experime
 *   `glint export <filter> -o <output>.cube`: Export a look for use in professional editing software.
 *   `glint serve`: Launch the interactive visual workbench.
 
-## 📐 Architecture: Functional Core, Imperative Shell
+## Architecture: Functional Core, Imperative Shell
 
-Glint follows a strict architectural pattern inspired by Clojure:
+Glint follows a strict boundary between logic and IO:
 
-1.  **Functional Core (`core.py`)**: Pure functions that take an image and parameters, returning a new image. No side effects, no state.
-2.  **Calculations (`pipeline.py`)**: Logic for merging, blending, and validating filter parameters.
-3.  **Imperative Shell (`server.py`, `cli.py`)**: Handles the outside world—FastAPI, local file I/O, and calls to the Gemma 4 vision gateway.
+1.  **Functional Core (`core.py`)**: Pure functions that transform images. No side effects.
+2.  **Calculations (`pipeline.py`)**: The "brain" for merging, blending, and validating parameter sets.
+3.  **Imperative Shell (`server.py`, `cli.py`)**: Handles the outside world—FastAPI, local file I/O, and calls to the vision gateway via the `prism` proxy.
 
-## 🧪 Development & Testing
+## Development & Testing
 
-We maintain a high quality bar with over 100+ automated tests covering edge cases, color science accuracy, and API stability.
+Stability is prioritized over clever abstractions.
 
 ```bash
 # Run the test suite
@@ -60,6 +58,6 @@ ruff check .
 ruff format .
 ```
 
-## 📜 License
+## License
 
 MIT
