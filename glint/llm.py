@@ -11,28 +11,33 @@ from .types import FilterParams, MODELS
 
 
 DEFAULT_MODEL = "openrouter/openai/gpt-oss-20b"
-LLM_BASE_URL = "http://prism:8080/openai/v1"
+LLM_BASE_URL = "http://prism:8089/v1"
 
 
 SYSTEM_PROMPT = """You are a pragmatic color grading expert. Given a description 
 of a desired photo look, respond with ONLY valid JSON matching this schema:
 
-{"contrast": float, "brightness": float, "saturation": float, 
- "fade": float, "grain": float, "temperature": float, 
+{"contrast": float, "brightness": float, "saturation": float, "vibrance": float,
+ "fade": float, "grain": float, "temperature": float, "dehaze": float,
+ "clarity": float, "texture": float, "sharpen": float,
  "tint": {"r": float, "g": float, "b": float}, "vignette": float,
  "highlights": float, "shadows": float}
 
 Constraints:
 - contrast, saturation: 0.5 to 1.5 (default 1.0)
+- vibrance: -0.5 to 1.0 (default 0.0)
 - brightness, highlights, shadows: -0.2 to 0.2 (default 0.0)
 - fade, grain, vignette: 0.0 to 0.5 (default 0.0)
 - temperature: -0.3 to 0.3 (default 0.0)
 - tint RGB offsets: -0.15 to 0.15 (default 0.0)
+- dehaze, clarity, texture, sharpen: 0.0 to 1.0 (default 0.0)
 
-Rules:
-1. Respond with ONLY valid JSON. 
-2. Be conservative. Small changes lead to better professional results.
-3. No explanation or markdown."""
+Expert Advice:
+1. Use 'vibrance' instead of 'saturation' for portraits to protect skin tones.
+2. Use 'clarity' and 'dehaze' for landscapes and architecture to add "pop."
+3. Use 'texture' and 'sharpen' for fine detail enhancement.
+4. Respond with ONLY valid JSON.
+5. Be conservative. Small changes lead to better professional results."""
 
 USER_PROMPT_TEMPLATE = """Create filter parameters for: "{description}"
 
@@ -46,7 +51,7 @@ def generate_from_prompt(
     current_params: Optional[FilterParams] = None,
     model: str = DEFAULT_MODEL,
     base_url: str = LLM_BASE_URL,
-    timeout: float = 30.0,
+    timeout: float = 120.0,
 ) -> FilterParams:
     """
     Call LLM with a description, return FilterParams.

@@ -18,6 +18,11 @@ class FilterParams(TypedDict, total=False):
     vignette: float
     highlights: float
     shadows: float
+    vibrance: float
+    clarity: float
+    texture: float
+    dehaze: float
+    sharpen: float
 
 
 DEFAULTS: FilterParams = {
@@ -32,6 +37,11 @@ DEFAULTS: FilterParams = {
     "vignette": 0.0,
     "highlights": 0.0,
     "shadows": 0.0,
+    "vibrance": 0.0,
+    "clarity": 0.0,
+    "texture": 0.0,
+    "dehaze": 0.0,
+    "sharpen": 0.0,
 }
 
 MODELS = {

@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from .types import FilterParams
-from .pipeline import build_pipeline
+from .pipeline import build_color_pipeline, apply_pipeline
 
 
 def generate_cube(
@@ -15,14 +15,7 @@ def generate_cube(
 ) -> np.ndarray:
     """
     Generate a 3D LUT as numpy array.
-
-    Args:
-        params: Filter parameters
-        size: LUT size (e.g., 33 for 33x33x33)
-        title: Title for the .cube file
-
-    Returns:
-        numpy array of shape (size^3, 3) with values 0-1
+    Only includes global color transforms from build_color_pipeline.
     """
     r, g, b = np.mgrid[0:size, 0:size, 0:size] / (size - 1.0)
 
@@ -30,9 +23,7 @@ def generate_cube(
         size, size, size, 3
     )
 
-    from .pipeline import apply_pipeline
-
-    pipeline = build_pipeline(params)
+    pipeline = build_color_pipeline(params)
 
     transformed = apply_pipeline(rgb, pipeline)
 

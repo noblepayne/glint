@@ -7,6 +7,7 @@ and returns a transformed array of the same shape.
 
 import numpy as np
 from numpy.typing import NDArray
+from PIL import Image, ImageFilter
 
 
 def adjust_contrast(rgb: NDArray[np.float64], gamma: float) -> NDArray[np.float64]:
@@ -38,6 +39,146 @@ def adjust_saturation(rgb: NDArray[np.float64], factor: float) -> NDArray[np.flo
     """
     gray = np.mean(rgb, axis=2, keepdims=True)
     return np.clip(gray + (rgb - gray) * factor, 0, 1)
+
+
+def adjust_vibrance(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
+    """
+    Adjust vibrance (smart saturation).
+
+    Increases saturation more for muted pixels than for already-saturated ones.
+    amount: -1 to 1 (0 = no change)
+    """
+    if amount == 0:
+        return rgb
+
+    # Calculate current saturation per pixel
+    # Simple max(r,g,b) - min(r,g,b) estimate
+    mx = np.max(rgb, axis=2, keepdims=True)
+    mn = np.min(rgb, axis=2, keepdims=True)
+    sat = (mx - mn) / (mx + 1e-6)
+
+    # Weight: lower saturation gets more boost
+    weight = 1.0 - sat
+    boost = 1.0 + (amount * weight)
+
+    # Apply boost
+    gray = np.mean(rgb, axis=2, keepdims=True)
+    result = gray + (rgb - gray) * boost
+    return np.clip(result, 0, 1)
+
+
+def apply_clarity(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
+    """
+    Apply clarity (local contrast enhancement).
+
+    Uses a large-radius high-pass filter blended via soft light.
+    amount: -1 to 1 (0 = no change)
+    """
+    if amount == 0:
+        return rgb
+
+    # Need PIL for fast large-radius blur
+    from PIL import Image
+
+    h, w, _ = rgb.shape
+    pil_img = Image.fromarray((rgb * 255).astype(np.uint8))
+
+    # Large radius for clarity (approx 5-10% of image size)
+    radius = max(h, w) * 0.05
+    blurred = pil_img.filter(ImageFilter.GaussianBlur(radius))
+    blurred_arr = np.array(blurred).astype(np.float64) / 255.0
+
+    # High pass
+    high_pass = rgb - blurred_arr + 0.5
+
+    # Soft Light blend: 2ab + a^2(1-2b) if b < 0.5, else 2a(1-b) + sqrt(a)(2b-1)
+    # Simplified version for speed
+    def soft_light(a, b):
+        return (1 - 2 * b) * a**2 + 2 * b * a
+
+    result = soft_light(rgb, np.clip(high_pass, 0, 1))
+
+    # Blend original and clarity based on amount
+    return np.clip(rgb * (1 - abs(amount)) + result * abs(amount), 0, 1)
+
+
+def apply_texture(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
+    """
+    Apply texture (fine-detail enhancement).
+
+    Similar to clarity but with a very small radius.
+    amount: -1 to 1 (0 = no change)
+    """
+    if amount == 0:
+        return rgb
+
+    # Small radius (1-3px)
+    h, w, _ = rgb.shape
+    pil_img = Image.fromarray((rgb * 255).astype(np.uint8))
+    blurred = pil_img.filter(ImageFilter.GaussianBlur(2.0))
+    blurred_arr = np.array(blurred).astype(np.float64) / 255.0
+
+    # High pass
+    high_pass = rgb - blurred_arr + 0.5
+
+    # Overlay blend
+    def overlay(a, b):
+        return np.where(a < 0.5, 2 * a * b, 1 - 2 * (1 - a) * (1 - b))
+
+    result = overlay(rgb, np.clip(high_pass, 0, 1))
+
+    return np.clip(rgb * (1 - abs(amount)) + result * abs(amount), 0, 1)
+
+
+def apply_dehaze(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
+    """
+    Apply dehaze (atmospheric clarity).
+
+    Simple implementation using black point offset and global contrast.
+    amount: -1 to 1 (0 = no change)
+    """
+    if amount == 0:
+        return rgb
+
+    # Positive amount = remove haze (deepen blacks, boost contrast)
+    if amount > 0:
+        # Lower black point
+        result = np.clip(rgb - (amount * 0.1), 0, 1)
+        # Boost contrast
+        gamma = 1.0 - (amount * 0.2)
+        result = np.power(result, gamma)
+        # Boost saturation slightly
+        gray = np.mean(result, axis=2, keepdims=True)
+        result = gray + (result - gray) * (1.0 + amount * 0.2)
+    else:
+        # Negative amount = add haze (lift blacks, reduce contrast)
+        abs_amount = abs(amount)
+        result = rgb + (abs_amount * 0.15)
+        gamma = 1.0 + (abs_amount * 0.3)
+        result = np.power(np.clip(result, 0.001, 1), gamma)
+
+    return np.clip(result, 0, 1)
+
+
+def apply_sharpen(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:
+    """
+    Apply sharpening using a 3x3 Laplacian kernel.
+    """
+    if amount <= 0:
+        return rgb
+
+    from PIL import ImageFilter
+
+    pil_img = Image.fromarray((rgb * 255).astype(np.uint8))
+    # Apply subtle sharpening pass
+    sharpened = pil_img.filter(ImageFilter.SHARPEN)
+    if amount > 0.5:
+        sharpened = sharpened.filter(ImageFilter.SHARPEN)
+
+    sharpened_arr = np.array(sharpened).astype(np.float64) / 255.0
+
+    # Blend based on amount
+    return np.clip(rgb * (1 - amount) + sharpened_arr * amount, 0, 1)
 
 
 def apply_fade(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64]:

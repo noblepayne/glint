@@ -17,7 +17,7 @@ from .types import FilterParams, merge_with_defaults
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "openrouter/google/gemini-3-flash-preview"
-VISION_BASE_URL = "http://prism:8080/openai/v1"
+VISION_BASE_URL = "http://prism:8089/v1"
 
 
 def img_to_base64(img: Image.Image, format: str = "PNG") -> str:
@@ -38,17 +38,20 @@ VISION_SYSTEM_PROMPT = """You are an expert colorist and photo retoucher. Your j
 and suggest filter parameters to improve them.
 
 You must respond with valid JSON matching this schema:
-{"contrast": float, "brightness": float, "saturation": float, "fade": float, 
- "grain": float, "temperature": float, "tint": {"r": float, "g": float, "b": float},
- "vignette": float, "highlights": float, "shadows": float}
+{"contrast": float, "brightness": float, "saturation": float, "vibrance": float,
+ "fade": float, "grain": float, "temperature": float, "dehaze": float,
+ "clarity": float, "texture": float, "sharpen": float,
+ "tint": {"r": float, "g": float, "b": float}, "vignette": float,
+ "highlights": float, "shadows": float}
 
 Parameter guidelines:
 - contrast, saturation: 0.5-1.5 (1.0 = no change)
-- brightness: -0.2 to 0.2
+- vibrance: -0.5 to 1.0
+- brightness, highlights, shadows: -0.2 to 0.2
 - fade, grain, vignette: 0.0-0.5
-- temperature: -0.3 to 0.3 (negative=cooler/blue, positive=warmer/yellow)
-- tint RGB: -0.15 to 0.15 per channel
-- highlights, shadows: -0.2 to 0.2
+- temperature: -0.3 to 0.3
+- tint RGB: -0.15 to 0.15
+- dehaze, clarity, texture, sharpen: 0.0 to 1.0
 
 Respond with ONLY valid JSON, no explanation, no markdown."""
 
@@ -65,13 +68,14 @@ Respond with JSON only."""
 FOCUS_INSTRUCTIONS = {
     "initial": "Provide initial filter parameters to enhance this image. Consider composition, lighting, and mood.",
     "none": "Analyze the image and provide a balanced enhancement. Do not lean too far into any specific style unless the image clearly demands it.",
-    "boost_contrast": "The image looks flat. Increase contrast and saturation slightly.",
+    "boost_contrast": "The image looks flat. Increase contrast, saturation, and clarity.",
     "warmer": "The image feels too cool/cold. Add warmth via temperature and tint.",
     "cooler": "The image feels too warm. Cool it down.",
     "fade": "Add a subtle fade/grain effect for a vintage look.",
-    "pop": "Make colors more vibrant, boost saturation and highlights.",
+    "pop": "Make colors more vibrant (vibrance), boost clarity and dehaze.",
     "moody": "Reduce brightness, add vignette, push shadows.",
     "glint": "Apply a signature high-contrast but faded look. Lower highlights, boost shadows, and add significant grain/fade for a raw cinematic feel.",
+    "detailed": "Enhance fine details with texture and sharpen while keeping colors balanced.",
 }
 
 
@@ -82,7 +86,7 @@ def generate_vision_params(
     user_prompt: Optional[str] = None,
     model: str = DEFAULT_MODEL,
     base_url: str = VISION_BASE_URL,
-    timeout: float = 60.0,
+    timeout: float = 120.0,
 ) -> FilterParams:
     """
     Call Gemma 4 vision model to suggest filter improvements.
@@ -178,6 +182,7 @@ def iterative_refine(
     history: list[FilterParams] = []
 
     for round_num in range(max_rounds):
+        logger.info(f"Starting refinement round {round_num + 1}/{max_rounds}")
         is_last = round_num == max_rounds - 1
         this_focus = focus if is_last else "initial"
         this_prompt = user_prompt if is_last else None
@@ -198,6 +203,7 @@ def iterative_refine(
                 )
                 break
 
+            logger.info(f"Round {round_num + 1} params: {new_params}")
             current_params = merge_with_defaults(new_params)
             history.append(current_params.copy())
         except Exception as e:

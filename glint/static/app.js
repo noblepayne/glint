@@ -2,7 +2,8 @@ let currentImage = null;
 let currentFilter = 'none';
 let currentParams = {
     contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, 
-    grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0
+    grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0,
+    vibrance: 0.0, clarity: 0.0, texture: 0.0, dehaze: 0.0, sharpen: 0.0
 };
 let lastAppliedParams = JSON.stringify(currentParams);
 let autoApply = true;
@@ -43,7 +44,11 @@ function updateURL() {
         if (textModel) params.set('t_model', textModel);
         if (!autoApply) params.set('auto', '0');
 
-        const defaults = { contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0 };
+        const defaults = { 
+            contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, 
+            grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0,
+            vibrance: 0.0, clarity: 0.0, texture: 0.0, dehaze: 0.0, sharpen: 0.0
+        };
         Object.keys(currentParams).forEach(key => {
             if (currentParams[key] !== defaults[key]) {
                 params.set(key, currentParams[key].toFixed(2));
@@ -70,7 +75,11 @@ async function loadFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     const filterName = urlParams.get('filter') || 'none';
     
-    currentParams = { contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0 };
+    currentParams = { 
+        contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, 
+        grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0,
+        vibrance: 0.0, clarity: 0.0, texture: 0.0, dehaze: 0.0, sharpen: 0.0
+    };
     
     if (filterName !== 'none') {
         const resp = await fetch('/filter/' + filterName);
@@ -125,7 +134,7 @@ if (uploadForm) {
             document.getElementById('preview-section')?.classList.remove('hidden');
             await selectFilter('none');
         } catch (err) {
-            alert('Upload failed: ' + err.message);
+            console.error('Upload failed:', err);
         } finally {
             showLoading(false);
         }
@@ -149,7 +158,7 @@ document.addEventListener('paste', async (e) => {
                 document.getElementById('preview-section')?.classList.remove('hidden');
                 await selectFilter('none');
             } catch (err) {
-                alert('Paste failed: ' + err.message);
+                console.error('Paste failed:', err);
             } finally {
                 showLoading(false);
             }
@@ -168,7 +177,11 @@ async function selectFilter(name, push = true) {
         const resp = await fetch('/filter/' + name);
         const params = await resp.json();
         
-        currentParams = { contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0 };
+        currentParams = { 
+            contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, 
+            grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0,
+            vibrance: 0.0, clarity: 0.0, texture: 0.0, dehaze: 0.0, sharpen: 0.0
+        };
         currentParams = { ...currentParams, ...params };
         
         renderParams(currentParams);
@@ -180,13 +193,21 @@ async function selectFilter(name, push = true) {
 }
 
 function renderParams(params) {
-    const container = document.getElementById('params-container');
-    if (!container) return;
-    container.innerHTML = '';
+    const categories = {
+        'tone-params': ['brightness', 'contrast', 'highlights', 'shadows', 'dehaze'],
+        'detail-params': ['clarity', 'texture', 'sharpen', 'grain', 'vignette'],
+        'color-params': ['saturation', 'vibrance', 'temperature', 'fade']
+    };
+
     const config = {
         'contrast': { min: 0.5, max: 1.5, step: 0.01 },
         'brightness': { min: -0.5, max: 0.5, step: 0.01 },
         'saturation': { min: 0, max: 2, step: 0.01 },
+        'vibrance': { min: -1, max: 1, step: 0.01 },
+        'clarity': { min: -1, max: 1, step: 0.01 },
+        'texture': { min: -1, max: 1, step: 0.01 },
+        'dehaze': { min: -1, max: 1, step: 0.01 },
+        'sharpen': { min: 0, max: 1, step: 0.01 },
         'fade': { min: 0, max: 1, step: 0.01 },
         'grain': { min: 0, max: 1, step: 0.01 },
         'temperature': { min: -0.5, max: 0.5, step: 0.01 },
@@ -195,19 +216,26 @@ function renderParams(params) {
         'shadows': { min: -0.5, max: 0.5, step: 0.01 }
     };
 
-    Object.keys(config).forEach(key => {
-        const c = config[key];
-        const val = params[key] !== undefined ? params[key] : (key === 'contrast' || key === 'saturation' ? 1.0 : 0.0);
-        const row = document.createElement('div');
-        row.className = 'param-row';
-        row.innerHTML = `
-            <label>${key}</label>
-            <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${val}" 
-                   oninput="handleParamChange('${key}', this.value, this.nextElementSibling)">
-            <span>${val.toFixed(2)}</span>
-        `;
-        container.appendChild(row);
+    Object.keys(categories).forEach(catId => {
+        const container = document.getElementById(catId);
+        if (!container) return;
+        container.innerHTML = '';
+        
+        categories[catId].forEach(key => {
+            const c = config[key];
+            const val = params[key] !== undefined ? params[key] : (key === 'contrast' || key === 'saturation' ? 1.0 : 0.0);
+            const row = document.createElement('div');
+            row.className = 'param-row';
+            row.innerHTML = `
+                <label>${key}</label>
+                <input type="range" min="${c.min}" max="${c.max}" step="${c.step}" value="${val}" 
+                       oninput="handleParamChange('${key}', this.value, this.nextElementSibling)">
+                <span>${val.toFixed(2)}</span>
+            `;
+            container.appendChild(row);
+        });
     });
+    
     updateApplyButtonState();
 }
 
@@ -271,7 +299,7 @@ async function applyFilter() {
 const aiForm = document.getElementById('ai-form');
 if (aiForm) {
     aiForm.onsubmit = async () => {
-        if (!currentImage) return alert('Upload image first');
+        if (!currentImage) return;
         
         if (aiController) aiController.abort();
         aiController = new AbortController();
@@ -283,6 +311,9 @@ if (aiForm) {
         const modelLabel = selectedModelEl?.options[selectedModelEl.selectedIndex]?.text || "AI";
         if (statusBox) statusBox.textContent = `${modelLabel} analyzing...`;
         
+        console.group(`AI Vision Request: ${modelLabel}`);
+        const startTime = performance.now();
+
         document.getElementById('ai-result')?.classList.remove('hidden');
         try {
             const resp = await fetch('/vision/auto-fix', {
@@ -298,15 +329,23 @@ if (aiForm) {
                 signal: aiController.signal
             });
             const data = await resp.json();
+            console.log("Response Data:", data);
+            console.log(`Execution Time: ${(performance.now() - startTime).toFixed(2)}ms`);
+            
             currentParams = { ...currentParams, ...data.params };
             renderParams(currentParams);
             await applyFilter();
             updateURL();
             if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
         } catch (err) {
-            if (err.name === 'AbortError') return;
-            if (statusBox) statusBox.textContent = "Error: " + err.message;
+            if (err.name === 'AbortError') {
+                console.info("AI Request Aborted");
+            } else {
+                console.error("AI Request Failed:", err);
+                if (statusBox) statusBox.textContent = "Error: " + err.message;
+            }
         } finally {
+            console.groupEnd();
             showLoading(false);
         }
     };
@@ -323,6 +362,10 @@ if (textPromptForm) {
         const statusBox = document.getElementById('prompt-params-display');
         showLoading(true);
         if (statusBox) statusBox.textContent = "Generating filter...";
+        
+        console.group(`AI Text-to-Filter Request`);
+        const startTime = performance.now();
+
         document.getElementById('prompt-result')?.classList.remove('hidden');
         try {
             const resp = await fetch('/generate', {
@@ -336,8 +379,10 @@ if (textPromptForm) {
                 signal: aiController.signal
             });
             const data = await resp.json();
-            generatedParams = data.params;
+            console.log("Response Data:", data);
+            console.log(`Execution Time: ${(performance.now() - startTime).toFixed(2)}ms`);
             
+            generatedParams = data.params;
             currentParams = { ...currentParams, ...generatedParams };
             renderParams(currentParams);
             await applyFilter();
@@ -345,9 +390,14 @@ if (textPromptForm) {
 
             if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
         } catch (err) {
-            if (err.name === 'AbortError') return;
-            if (statusBox) statusBox.textContent = "Error: " + err.message;
+            if (err.name === 'AbortError') {
+                console.info("AI Request Aborted");
+            } else {
+                console.error("AI Request Failed:", err);
+                if (statusBox) statusBox.textContent = "Error: " + err.message;
+            }
         } finally {
+            console.groupEnd();
             showLoading(false);
         }
     };
@@ -358,14 +408,13 @@ const nameInput = document.getElementById('save-filter-name');
 if (savePromptBtn) {
     savePromptBtn.onclick = async () => {
         const name = nameInput?.value.trim();
-        if (!name) return alert('Please enter a name for your preset');
+        if (!name) return;
         const resp = await fetch('/save-filter', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, params: currentParams })
         });
         if (resp.ok) {
-            alert('Saved as preset: ' + name);
             nameInput.value = '';
             filters.push([name, 'Custom']);
             buildFiltersGrid();
@@ -395,7 +444,7 @@ document.getElementById('copy-btn').onclick = async () => {
     if (!img) return;
     const blob = await (await fetch(img.src)).blob();
     await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-    alert('Copied to clipboard!');
+    console.info('Image copied to clipboard');
 };
 
 document.getElementById('export-cube-btn').onclick = async () => {
