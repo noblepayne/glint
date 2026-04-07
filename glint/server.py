@@ -237,11 +237,11 @@ async def vision_auto_fix(request: dict) -> JSONResponse:
         img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
         params = vision.auto_fix(
-            img, 
-            max_rounds=max_rounds, 
-            focus=focus, 
+            img,
+            max_rounds=max_rounds,
+            focus=focus,
             user_prompt=user_prompt,
-            model=model if model else vision.DEFAULT_MODEL
+            model=model if model else vision.DEFAULT_MODEL,
         )
 
         result_img = apply_to_image(img, params)

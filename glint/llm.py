@@ -7,7 +7,7 @@ from typing import Optional
 
 import httpx
 
-from .types import FilterParams
+from .types import FilterParams, MODELS
 
 
 DEFAULT_MODEL = "openrouter/openai/gpt-oss-20b"

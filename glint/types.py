@@ -34,6 +34,15 @@ DEFAULTS: FilterParams = {
     "shadows": 0.0,
 }
 
+MODELS = {
+    "gemini-3-flash": "openrouter/google/gemini-3-flash-preview",
+    "gemini-2.0-flash": "openrouter/google/gemini-2.0-flash-001",
+    "gemma-4": "openrouter/google/gemma-4-31b-it",
+    "gpt-4o-mini": "openrouter/openai/gpt-4o-mini",
+    "claude-haiku": "openrouter/anthropic/claude-3.5-haiku",
+    "gpt-oss": "openrouter/openai/gpt-oss-20b",
+}
+
 
 def merge_with_defaults(params: FilterParams) -> FilterParams:
     """Merge user params with defaults, keeping user values where present.

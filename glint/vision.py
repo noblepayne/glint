@@ -19,15 +19,6 @@ logger = logging.getLogger(__name__)
 DEFAULT_MODEL = "openrouter/google/gemini-3-flash-preview"
 VISION_BASE_URL = "http://prism:8080/openai/v1"
 
-MODELS = {
-    "gemini-3-flash": "openrouter/google/gemini-3-flash-preview",
-    "gemini-2.0-flash": "openrouter/google/gemini-2.0-flash-001",
-    "gemma-4": "openrouter/google/gemma-4-31b-it",
-    "gpt-4o-mini": "openrouter/openai/gpt-4o-mini",
-    "claude-haiku": "openrouter/anthropic/claude-3.5-haiku",
-    "gpt-oss": "openrouter/openai/gpt-oss-20b",
-}
-
 
 def img_to_base64(img: Image.Image, format: str = "PNG") -> str:
     """Convert PIL Image to base64 string."""
