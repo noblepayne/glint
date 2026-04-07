@@ -83,18 +83,23 @@ def apply_clarity(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64
     h, w, _ = rgb.shape
     pil_img = Image.fromarray((rgb * 255).astype(np.uint8))
 
-    # Large radius for clarity (approx 5-10% of image size)
+    # Large radius for clarity (approx 5% of image size)
     radius = max(h, w) * 0.05
+
+    # Efficient conversion
     blurred = pil_img.filter(ImageFilter.GaussianBlur(radius))
     blurred_arr = np.array(blurred).astype(np.float64) / 255.0
 
     # High pass
     high_pass = rgb - blurred_arr + 0.5
 
-    # Soft Light blend: 2ab + a^2(1-2b) if b < 0.5, else 2a(1-b) + sqrt(a)(2b-1)
-    # Simplified version for speed
+    # Robust Soft Light blend (W3C standard)
     def soft_light(a, b):
-        return (1 - 2 * b) * a**2 + 2 * b * a
+        return np.where(
+            b < 0.5,
+            a - (1 - 2 * b) * a * (1 - a),
+            a + (2 * b - 1) * (np.sqrt(a + 1e-6) - a),
+        )
 
     result = soft_light(rgb, np.clip(high_pass, 0, 1))
 
@@ -121,7 +126,7 @@ def apply_texture(rgb: NDArray[np.float64], amount: float) -> NDArray[np.float64
     # High pass
     high_pass = rgb - blurred_arr + 0.5
 
-    # Overlay blend
+    # Overlay blend (Standard)
     def overlay(a, b):
         return np.where(a < 0.5, 2 * a * b, 1 - 2 * (1 - a) * (1 - b))
 
