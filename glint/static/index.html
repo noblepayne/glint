@@ -28,6 +28,12 @@
                     <h2>2. Import .cube LUT</h2>
                     <div class="grid">
                         <input type="file" id="lut-input" accept=".cube">
+                        <fieldset>
+                            <label for="lut-is-log">
+                                <input type="checkbox" id="lut-is-log" name="lut-is-log" role="switch">
+                                Source is Log (S-Log3)
+                            </label>
+                        </fieldset>
                         <button id="apply-lut-btn" class="outline">Apply .cube</button>
                     </div>
                     <p><small>Directly apply a professional 3D LUT.</small></p>

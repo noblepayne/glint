@@ -1,5 +1,5 @@
 """
-Generate .cube LUT files from FilterParams.
+Generate and load .cube LUT files following Adobe/Iridash standard conventions.
 """
 
 from pathlib import Path
@@ -15,18 +15,21 @@ def generate_cube(
 ) -> np.ndarray:
     """
     Generate a 3D LUT as numpy array.
-    Only includes global color transforms from build_color_pipeline.
+    Standard ordering: Red slowest (outermost), Blue fastest (innermost).
     """
-    r, g, b = np.mgrid[0:size, 0:size, 0:size] / (size - 1.0)
+    # Create coordinate grid: 0.0 to 1.0
+    indices = np.linspace(0, 1, size)
+    # meshgrid with indexing="ij" gives [r, g, b] order
+    r, g, b = np.meshgrid(indices, indices, indices, indexing="ij")
 
-    rgb = np.stack([r.ravel(), g.ravel(), b.ravel()], axis=1).reshape(
-        size, size, size, 3
-    )
+    # Stack into (size, size, size, 3) where last dim is RGB
+    rgb = np.stack([r, g, b], axis=-1)
 
+    # Apply global color pipeline
     pipeline = build_color_pipeline(params)
-
     transformed = apply_pipeline(rgb, pipeline)
 
+    # Flatten to list of lines for .cube format
     return transformed.reshape(-1, 3)
 
 
@@ -35,20 +38,11 @@ def save_cube(
 ) -> Path:
     """
     Generate and save a .cube file.
-
-    Args:
-        params: Filter parameters
-        output_path: Path to save .cube file
-        size: LUT size
-        title: Title (defaults to filter name or 'glint_filter')
-
-    Returns:
-        Path to saved file
     """
     if title is None:
-        title = params.get("name", params.get("name", "glint_filter"))
+        title = params.get("name", "glint_filter")
 
-    lut = generate_cube(params, size, title)
+    lut_data = generate_cube(params, size, title)
 
     with open(output_path, "w") as f:
         f.write(f'TITLE "{title}"\n')
@@ -56,29 +50,46 @@ def save_cube(
         f.write("DOMAIN_MIN 0.0 0.0 0.0\n")
         f.write("DOMAIN_MAX 1.0 1.0 1.0\n\n")
 
-        for rgb in lut:
+        for rgb in lut_data:
             f.write(f"{rgb[0]:.6f} {rgb[1]:.6f} {rgb[2]:.6f}\n")
 
     return output_path
 
 
-def load_cube(path: Path) -> np.ndarray:
-    """Load a .cube file and return as numpy array."""
+def load_cube(path: Path) -> tuple[np.ndarray, int, str]:
+    """
+    Load a .cube file and return (data, size, title).
+    Ensures standard Red-slowest, Blue-fastest ordering.
+    """
     data = []
+    size = 0
+    title = "unknown"
+
     with open(path) as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
+
             if line.startswith("LUT_3D_SIZE"):
-                continue
-            if line.startswith("DOMAIN"):
+                size = int(line.split()[-1])
                 continue
             if line.startswith("TITLE"):
+                title = line.replace("TITLE", "").strip().strip('"')
+                continue
+            if line.startswith("DOMAIN"):
                 continue
 
             parts = line.split()
             if len(parts) == 3:
-                data.append([float(x) for x in parts])
+                try:
+                    data.append([float(x) for x in parts])
+                except ValueError:
+                    continue
 
-    return np.array(data)
+    arr = np.array(data)
+    if size == 0:
+        size = int(round(len(arr) ** (1 / 3)))
+
+    # Return as (size, size, size, 3) for trilinear interpolation
+    return arr.reshape(size, size, size, 3), size, title

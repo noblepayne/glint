@@ -100,9 +100,28 @@ def generate_from_prompt(
         response.raise_for_status()
 
         data = response.json()
-        content = data["choices"][0]["message"]["content"]
+        choices = data.get("choices", [])
+        if not choices:
+            raise RuntimeError(f"LLM returned no choices: {data}")
 
-        parsed = json.loads(content)
+        content = choices[0].get("message", {}).get("content")
+        if content is None:
+            # Handle cases where model returns reasoning but no content yet,
+            # or simply fails to generate.
+            print(f"DEBUG: LLM returned empty content. Data: {data}")
+            return {}
+
+        # Robust JSON parsing
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0].strip()
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0].strip()
+
+        try:
+            parsed = json.loads(content)
+        except json.JSONDecodeError:
+            print(f"DEBUG: Failed to parse LLM JSON content: {content}")
+            return {}
 
         result: FilterParams = {}
         for key, value in parsed.items():

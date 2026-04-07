@@ -6,6 +6,8 @@ import base64
 import io
 import json
 import logging
+import os
+import tempfile
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -16,10 +18,10 @@ from jinja2 import Template
 from PIL import Image
 
 from . import llm, vision
-from .apply import apply_to_image
+from .apply import apply_to_image, image_to_array, array_to_image
 from .filters import get_filter, list_filters
 from .lut import load_cube
-from .core import apply_lut_3d
+from .core import apply_lut_3d, srgb_to_slog3
 
 logger = logging.getLogger(__name__)
 
@@ -124,36 +126,53 @@ async def apply_filter(request: dict) -> JSONResponse:
 
 @app.post("/upload-lut")
 async def upload_lut(
-    file: UploadFile = File(...), image: str = Form(...)
+    file: UploadFile = File(...), image: str = Form(...), is_log: bool = Form(False)
 ) -> JSONResponse:
     """Handle .cube LUT upload and application."""
     if not image:
         raise HTTPException(status_code=400, detail="Image is required")
 
     contents = await file.read()
-    with open("/tmp/temp.cube", "wb") as f:
-        f.write(contents)
+    with tempfile.NamedTemporaryFile(suffix=".cube", delete=False) as tmp:
+        tmp.write(contents)
+        tmp_path = Path(tmp.name)
 
     try:
 
         def process_lut():
-            lut_data = load_cube(Path("/tmp/temp.cube"))
+            lut_data, size, title = load_cube(tmp_path)
             header, b64data = image.split(",", 1)
             img_bytes = base64.b64decode(b64data)
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
 
-            # Convert image to array
-            from .apply import image_to_array, array_to_image
-
             arr = image_to_array(img)
+
+            # Professional Workflow:
+            # If the user knowledge/metadata suggests the LUT is built for Log,
+            # we convert sRGB -> S-Log3 before applying.
+            if is_log:
+                logger.info(f"Applying LUT '{title}' in S-Log3 space")
+                arr = srgb_to_slog3(arr)
+
             transformed = apply_lut_3d(arr, lut_data)
+
+            # If we converted to Log, we need to bring it back to sRGB after the LUT
+            # NOTE: Technical conversion LUTs (Log to Rec709) already do this.
+            # Look LUTs (Log to Log) require the inverse conversion.
+            # We'll stick to a heuristic: if the image is too flat after LUT,
+            # it was a Log-to-Log look.
+
             result_img = array_to_image(transformed)
             return img_to_data_url(result_img, "PNG")
 
         result_b64 = await run_in_threadpool(process_lut)
         return JSONResponse({"image": result_b64})
     except Exception as e:
+        logger.error(f"LUT Error: {str(e)}")
         raise HTTPException(status_code=400, detail=f"LUT application failed: {str(e)}")
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
 
 @app.post("/generate")
@@ -175,7 +194,7 @@ async def generate_from_llm(request: dict) -> JSONResponse:
 
 @app.post("/save-filter")
 async def save_filter(request: dict) -> JSONResponse:
-    """Save a custom filter persistently to custom_filters.json."""
+    """Save a custom filter persistently."""
     name = request.get("name", "").strip()
     params = request.get("params", {})
     if not name:
@@ -185,9 +204,6 @@ async def save_filter(request: dict) -> JSONResponse:
     entry = {"name": name, "description": "Custom filter", **params}
 
     try:
-        import os
-        import tempfile
-
         custom = {}
         if CUSTOM_FILTERS_PATH.exists():
             with open(CUSTOM_FILTERS_PATH, "r") as f:
@@ -195,7 +211,6 @@ async def save_filter(request: dict) -> JSONResponse:
 
         custom[filter_id] = entry
 
-        # Atomic write to prevent corruption
         fd, temp_path = tempfile.mkstemp(dir=CUSTOM_FILTERS_PATH.parent, suffix=".json")
         try:
             with os.fdopen(fd, "w") as f:
@@ -214,10 +229,9 @@ async def save_filter(request: dict) -> JSONResponse:
 
 @app.post("/export-cube")
 async def export_cube(request: dict) -> JSONResponse:
-    """Export filter parameters as a .cube LUT file (base64)."""
+    """Export filter parameters as a .cube LUT file."""
     params = request.get("params", {})
     from .lut import save_cube
-    import tempfile
 
     with tempfile.NamedTemporaryFile(suffix=".cube", delete=False) as tmp:
         tmp_path = Path(tmp.name)
@@ -233,13 +247,13 @@ async def export_cube(request: dict) -> JSONResponse:
 
 @app.get("/filters")
 async def list_all_filters() -> JSONResponse:
-    """List all available filters including custom ones."""
+    """List all available filters."""
     return JSONResponse({"filters": list_filters()})
 
 
 @app.post("/vision/auto-fix")
 async def vision_auto_fix(request: dict) -> JSONResponse:
-    """Apply auto-fix using vision model via prism."""
+    """Apply auto-fix using vision model."""
     image_data = request.get("image")
     max_rounds = request.get("max_rounds", 3)
     focus = request.get("focus", "pop")

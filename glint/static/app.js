@@ -166,10 +166,13 @@ if (applyLutBtn) {
         const file = lutInput?.files[0];
         if (!file) return;
         
+        const isLog = document.getElementById('lut-is-log')?.checked || false;
+        
         showLoading(true);
         const formData = new FormData();
         formData.append('file', file);
         formData.append('image', currentImage);
+        formData.append('is_log', isLog);
         
         try {
             const resp = await fetch('/upload-lut', { method: 'POST', body: formData });
