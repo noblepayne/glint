@@ -370,6 +370,6 @@ class TestFiltersCompleteness:
         for name, params in FILTERS.items():
             for key in ["contrast", "saturation", "brightness"]:
                 if key in params:
-                    assert isinstance(params[key], (int, float)), (
-                        f"Filter {name} has invalid {key}"
-                    )
+                    assert isinstance(
+                        params[key], (int, float)
+                    ), f"Filter {name} has invalid {key}"

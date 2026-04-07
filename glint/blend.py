@@ -49,9 +49,11 @@ def blend_filters(
         values = [
             f.get(
                 key,
-                0
-                if key in {"fade", "grain", "vignette"}
-                else (1 if key in {"contrast", "saturation"} else 0),
+                (
+                    0
+                    if key in {"fade", "grain", "vignette"}
+                    else (1 if key in {"contrast", "saturation"} else 0)
+                ),
             )
             for f in filters
         ]

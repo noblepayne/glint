@@ -22,14 +22,55 @@ function buildFiltersGrid() {
     if (!grid) return;
     grid.innerHTML = '';
     filters.forEach(([name, desc]) => {
+        const container = document.createElement('div');
+        container.className = 'filter-btn-container';
+        
         const btn = document.createElement('button');
         btn.className = 'filter-btn';
         btn.textContent = name;
         btn.title = desc;
         btn.onclick = () => selectFilter(name);
         if (name.toLowerCase() === currentFilter.toLowerCase()) btn.classList.add('active');
-        grid.appendChild(btn);
+        
+        container.appendChild(btn);
+
+        // Add delete button for custom filters
+        if (desc === 'Custom filter') {
+            const del = document.createElement('button');
+            del.className = 'delete-filter-btn';
+            del.innerHTML = '&times;';
+            del.title = 'Delete preset';
+            del.onclick = (e) => {
+                e.stopPropagation();
+                deleteFilter(name);
+            };
+            container.appendChild(del);
+        }
+
+        grid.appendChild(container);
     });
+}
+
+async function deleteFilter(name) {
+    const id = name.toLowerCase().replace(" ", "-");
+    if (!confirm(`Delete preset "${name}"?`)) return;
+
+    try {
+        const resp = await fetch('/delete-filter', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        if (resp.ok) {
+            const idx = filters.findIndex(f => f[0] === name);
+            if (idx !== -1) filters.splice(idx, 1);
+            if (currentFilter === name) selectFilter('none');
+            else buildFiltersGrid();
+            console.info(`Preset "${name}" deleted`);
+        }
+    } catch (err) {
+        console.error('Delete failed:', err);
+    }
 }
 
 function updateURL() {
@@ -199,23 +240,73 @@ document.addEventListener('paste', async (e) => {
     for (const item of items) {
         if (item.type.startsWith('image/')) {
             const file = item.getAsFile();
-            showLoading(true);
-            const formData = new FormData();
-            formData.append('file', file);
-            try {
-                const resp = await fetch('/upload', { method: 'POST', body: formData });
-                const data = await resp.json();
-                currentImage = data.image;
-                document.getElementById('original-img').src = currentImage;
-                document.getElementById('preview-section')?.classList.remove('hidden');
-                await selectFilter('none');
-            } catch (err) {
-                console.error('Paste failed:', err);
-            } finally {
-                showLoading(false);
-            }
+            await processImageFile(file);
             break;
+        } else if (item.type === 'application/json' || item.type === 'text/plain') {
+            const text = e.clipboardData.getData('text');
+            try {
+                const data = JSON.parse(text);
+                if (data.params) applyPresetJSON(data);
+            } catch (err) { /* Not a preset */ }
         }
+    }
+});
+
+async function processImageFile(file) {
+    showLoading(true);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const resp = await fetch('/upload', { method: 'POST', body: formData });
+        const data = await resp.json();
+        currentImage = data.image;
+        document.getElementById('original-img').src = currentImage;
+        document.getElementById('preview-section')?.classList.remove('hidden');
+        await selectFilter('none');
+    } catch (err) {
+        console.error('Upload failed:', err);
+    } finally {
+        showLoading(false);
+    }
+}
+
+function applyPresetJSON(data) {
+    if (!data.params) return;
+    
+    const defaults = { 
+        contrast: 1.0, saturation: 1.0, brightness: 0.0, fade: 0.0, 
+        grain: 0.0, temperature: 0.0, vignette: 0.0, highlights: 0.0, shadows: 0.0,
+        vibrance: 0.0, clarity: 0.0, texture: 0.0, dehaze: 0.0, sharpen: 0.0
+    };
+
+    // Merge: Defaults <- Current <- Imported
+    currentParams = { ...defaults, ...currentParams, ...data.params };
+    currentFilter = data.name || 'Imported';
+    
+    renderParams(currentParams);
+    if (currentImage) applyFilter();
+    updateURL();
+    console.info(`Imported preset: ${currentFilter}`);
+}
+
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    
+    if (file.type === 'application/json' || file.name.endsWith('.json')) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            try {
+                const data = JSON.parse(ev.target.result);
+                applyPresetJSON(data);
+            } catch (err) { console.error('Invalid JSON preset'); }
+        };
+        reader.readAsText(file);
+    } else if (file.type.startsWith('image/')) {
+        await processImageFile(file);
     }
 });
 
@@ -510,6 +601,21 @@ document.getElementById('export-cube-btn').onclick = async () => {
     a.href = URL.createObjectURL(new Blob([atob(data.cube)]));
     a.download = data.filename;
     a.click();
+};
+
+document.getElementById('download-params-btn').onclick = () => {
+    const data = {
+        _v: "0.2.0",
+        name: currentFilter !== 'none' ? currentFilter : "Glint Preset",
+        params: currentParams
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${data.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
 };
 
 function showLoading(show) {

@@ -35,7 +35,27 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 UPLOAD_DIR = Path("/tmp/glint-uploads")
 UPLOAD_DIR.mkdir(exist_ok=True)
 
-CUSTOM_FILTERS_PATH = Path(__file__).parent.parent / "custom_filters.json"
+
+def get_custom_filters_path() -> Path:
+    """Determine a writable path for custom filters."""
+    # 1. Environment variable override
+    env_path = os.environ.get("GLINT_PRESETS_PATH")
+    if env_path:
+        return Path(env_path)
+
+    # 2. XDG-style config directory in home
+    try:
+        config_dir = Path.home() / ".config" / "glint"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        return config_dir / "custom_filters.json"
+    except (OSError, RuntimeError) as e:
+        logger.warning(f"Home directory unwritable ({e}), falling back to /tmp")
+        # 3. Fallback to /tmp in extremely restricted environments
+        return Path(tempfile.gettempdir()) / "glint_custom_filters.json"
+
+
+CUSTOM_FILTERS_PATH = get_custom_filters_path()
+logger.info(f"Custom filters stored at: {CUSTOM_FILTERS_PATH}")
 
 
 def img_to_base64(img: Image.Image, format: str = "PNG") -> str:
@@ -309,6 +329,42 @@ async def vision_refine(request: dict) -> JSONResponse:
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Vision error: {str(e)}")
+
+
+@app.post("/delete-filter")
+async def delete_filter(request: dict) -> JSONResponse:
+    """Remove a custom filter from persistence."""
+    filter_id = request.get("id")
+    if not filter_id:
+        raise HTTPException(status_code=400, detail="Filter ID is required")
+
+    try:
+        if not CUSTOM_FILTERS_PATH.exists():
+            return JSONResponse({"status": "not_found"})
+
+        with open(CUSTOM_FILTERS_PATH, "r") as f:
+            custom = json.load(f)
+
+        if filter_id in custom:
+            del custom[filter_id]
+            # Atomic write
+            fd, temp_path = tempfile.mkstemp(
+                dir=CUSTOM_FILTERS_PATH.parent, suffix=".json"
+            )
+            try:
+                with os.fdopen(fd, "w") as f:
+                    json.dump(custom, f, indent=4)
+                os.replace(temp_path, CUSTOM_FILTERS_PATH)
+            except Exception:
+                if os.path.exists(temp_path):
+                    os.remove(temp_path)
+                raise
+            return JSONResponse({"status": "deleted", "id": filter_id})
+
+        return JSONResponse({"status": "not_found"})
+    except Exception as e:
+        logger.error(f"Failed to delete filter: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete: {str(e)}")
 
 
 if __name__ == "__main__":
