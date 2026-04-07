@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Glint</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <main class="container">
+        <hgroup>
+            <h1>Glint</h1>
+            <p>Traditional image filtering meets LLM and Vision styling.</p>
+        </hgroup>
+
+        <section>
+            <h2>1. Upload Image</h2>
+            <form id="upload-form" enctype="multipart/form-data">
+                <input type="file" id="image-input" name="file" accept="image/*" required>
+                <button type="submit">Upload</button>
+            </form>
+            <p><small>Or paste an image (Ctrl+V / Cmd+V)</small></p>
+        </section>
+
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Processing...</p>
+        </div>
+
+        <section id="preview-section" class="hidden">
+            <div class="grid">
+                <div>
+                    <h2>2. Choose Filter</h2>
+                    <div class="filters-grid" id="filters-grid"></div>
+                </div>
+                <div>
+                    <h2>3. Save / Export</h2>
+                    <div id="unified-save-form">
+                        <input type="text" id="save-filter-name" placeholder="Preset name (e.g. My Look)...">
+                        <div class="grid">
+                            <button id="save-prompt-btn" class="secondary">Save as Preset</button>
+                            <button id="save-btn" class="outline">Download PNG</button>
+                        </div>
+                        <div class="grid" style="margin-top: 0.5rem;">
+                            <button id="copy-btn" class="outline secondary">Copy to Clipboard</button>
+                            <button id="export-cube-btn" class="outline contrast">Export .cube</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-container">
+                <div class="preview-box">
+                    <h3>Original</h3>
+                    <img id="original-img" src="" alt="Original">
+                </div>
+                <div class="preview-box">
+                    <h3>Filtered</h3>
+                    <img id="filtered-img" src="" alt="Filtered">
+                </div>
+            </div>
+
+            <div class="params-panel">
+                <div class="grid" style="align-items: center; margin-bottom: 1rem;">
+                    <h3>Fine Tweak Parameters</h3>
+                    <div style="text-align: right;">
+                        <label for="auto-apply-switch" style="display: inline-flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" id="auto-apply-switch" name="auto-apply-switch" checked role="switch">
+                            Live Preview
+                        </label>
+                    </div>
+                </div>
+                <div id="params-container"></div>
+                <button id="apply-params" class="contrast">Apply Changes</button>
+            </div>
+        </section>
+
+        <hr>
+
+        <div class="grid">
+            <section id="ai-vision-section">
+                <h2>AI Vision Smart Edit</h2>
+                <p><small>Gemma 4 looks at your photo to calculate the best parameters.</small></p>
+                <form id="ai-form">
+                    <div class="grid">
+                        <div>
+                            <label>Style prompt:</label>
+                            <input type="text" id="ai-prompt" placeholder="e.g. moody, pop, vintage...">
+                        </div>
+                        <div>
+                            <label>Model:</label>
+                            <select id="ai-vision-model">
+                                <option value="openrouter/google/gemini-3-flash-preview">Gemini 3 Flash (Fast/2026)</option>
+                                <option value="openrouter/google/gemini-2.0-flash-001">Gemini 2.0 Flash (Stable)</option>
+                                <option value="openrouter/google/gemma-4-31b-it">Gemma 4 (Signature Raw)</option>
+                                <option value="openrouter/openai/gpt-4o-mini">GPT-4o Mini</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid">
+                        <select id="ai-focus">
+                            <option value="none">Auto Balanced</option>
+                            <option value="glint">Glint Signature (Raw/Faded)</option>
+                            <option value="pop">Vibrant & Pop</option>
+                            <option value="moody">Moody & Dramatic</option>
+                            <option value="fade">Vintage Fade</option>
+                        </select>
+                        <div>
+                            <label>Complexity: <span id="ai-rounds-label">3</span> loops</label>
+                            <input type="range" id="ai-rounds" min="1" max="5" value="3"
+                                   oninput="document.getElementById('ai-rounds-label').textContent = this.value">
+                        </div>
+                    </div>
+                    <button type="submit" class="contrast">Magic Apply (Vision)</button>
+                </form>
+                <div id="ai-result" class="hidden">
+                    <pre id="ai-result-params"></pre>
+                </div>
+            </section>
+
+            <section id="ai-prompt-section">
+                <h2>AI Text to Filter</h2>
+                <p><small>Pure LLM generation based on your text description.</small></p>
+                <form id="text-prompt-form">
+                    <div class="grid">
+                        <div>
+                            <label>Describe the look:</label>
+                            <input type="text" id="prompt-input" placeholder="e.g. 70s california summer, neon night...">
+                        </div>
+                        <div>
+                            <label>Model:</label>
+                            <select id="ai-text-model">
+                                <option value="openrouter/openai/gpt-oss-20b">GPT-OSS 20B (Super Fast/Cheap)</option>
+                                <option value="openrouter/openai/gpt-4o-mini">GPT-4o Mini</option>
+                                <option value="openrouter/anthropic/claude-3.5-haiku">Claude 3.5 Haiku</option>
+                                <option value="openrouter/google/gemma-4-31b-it">Gemma 4</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="secondary">Generate Filter</button>
+                </form>
+                <div id="prompt-result" class="hidden">
+                    <pre id="prompt-params-display"></pre>
+                    <button id="apply-prompt-btn">Apply to Sliders</button>
+                </div>
+            </section>
+        </div>
+
+        <div class="style-chips" style="margin-top: 1rem;">
+            <button type="button" class="outline style-chip contrast" data-style="Glint Raw: High contrast, low highlights, faded cinematic grain">✨ Glint Raw</button>
+            <button type="button" class="outline secondary style-chip" data-style="90s Polaroid">90s Polaroid</button>
+            <button type="button" class="outline secondary style-chip" data-style="Cinematic Teal and Orange">Cinematic</button>
+            <button type="button" class="outline secondary style-chip" data-style="Bright and Airy">Bright & Airy</button>
+            <button type="button" class="outline secondary style-chip" data-style="Dark Moody Film">Moody Film</button>
+        </div>
+    </main>
+
+    <script>window.GLINT_FILTERS = {{ filters_json }};</script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
