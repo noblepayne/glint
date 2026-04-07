@@ -1,0 +1,13 @@
+.clojure-mcp/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+/result
+/dist
+/build
+*.egg-info/
+/tmp/glint-uploads/
+result
+venv/

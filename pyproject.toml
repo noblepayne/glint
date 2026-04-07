@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glint"
+version = "0.2.0"
+description = "Traditional image filtering meets LLM and Vision styling."
+dependencies = [
+    "numpy",
+    "pillow",
+    "httpx",
+    "fastapi",
+    "uvicorn",
+    "python-multipart",
+    "jinja2"
+]
+
+[tool.setuptools.package-data]
+glint = ["static/*"]
+
+[project.scripts]
+glint = "glint.cli:main"
