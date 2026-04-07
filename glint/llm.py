@@ -37,7 +37,17 @@ Expert Advice:
 2. Use 'clarity' and 'dehaze' for landscapes and architecture to add "pop."
 3. Use 'texture' and 'sharpen' for fine detail enhancement.
 4. Respond with ONLY valid JSON.
-5. Be conservative. Small changes lead to better professional results."""
+5. Be conservative. Small changes lead to better professional results.
+
+Available Core Styles (Use these as reference points):
+- 'glint-raw': Signature look. Gritty micro-detail, high-contrast, faded dynamic range.
+- 'cinematic': Hollywood Teal/Orange. High mid-tone presence (Clarity).
+- 'soft-portrait': Gentle focus, skin-safe colors (Uses negative clarity).
+- 'industrial': Cold, sharp, architectural grit (High dehaze).
+- 'monochrome-pro': Deep texture B&W.
+- 'high-key': Bright, airy minimalism.
+- 'desert-sun': Warm atmospheric clarity.
+- 'valencia': Warm vintage fade."""
 
 USER_PROMPT_TEMPLATE = """Create filter parameters for: "{description}"
 

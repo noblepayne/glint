@@ -53,7 +53,17 @@ Parameter guidelines:
 - tint RGB: -0.15 to 0.15
 - dehaze, clarity, texture, sharpen: 0.0 to 1.0
 
-Respond with ONLY valid JSON, no explanation, no markdown."""
+Respond with ONLY valid JSON, no explanation, no markdown.
+
+Available Core Styles (Reference these for inspiration):
+- 'glint-raw': Gritty micro-detail, high-contrast, faded dynamic range.
+- 'cinematic': Hollywood Teal/Orange. High mid-tone presence (Clarity).
+- 'soft-portrait': Gentle focus, skin-safe colors (Uses negative clarity).
+- 'industrial': Cold, sharp, architectural grit (High dehaze).
+- 'monochrome-pro': Deep texture B&W.
+- 'high-key': Bright, airy minimalism.
+- 'desert-sun': Warm atmospheric clarity.
+- 'valencia': Warm vintage fade."""
 
 
 VISION_USER_TEMPLATE = """Analyze this image and suggest filter parameters that will improve it.
