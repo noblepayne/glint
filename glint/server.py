@@ -8,7 +8,7 @@ import json
 import logging
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -123,7 +123,9 @@ async def apply_filter(request: dict) -> JSONResponse:
 
 
 @app.post("/upload-lut")
-async def upload_lut(file: UploadFile = File(...), image: str = None) -> JSONResponse:
+async def upload_lut(
+    file: UploadFile = File(...), image: str = Form(...)
+) -> JSONResponse:
     """Handle .cube LUT upload and application."""
     if not image:
         raise HTTPException(status_code=400, detail="Image is required")

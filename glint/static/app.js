@@ -58,7 +58,6 @@ function updateURL() {
         const newURL = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
         window.history.pushState({ filter: currentFilter, params: { ...currentParams } }, '', newURL);
         
-        // localStorage Safety
         localStorage.setItem('glint_current_params', JSON.stringify(currentParams));
         localStorage.setItem('glint_current_filter', currentFilter);
     }, 250);
@@ -79,7 +78,6 @@ async function loadFromURL() {
     const urlParams = new URLSearchParams(window.location.search);
     let filterName = urlParams.get('filter');
     
-    // Fallback to localStorage if URL is clean
     if (!filterName) {
         const storedParams = localStorage.getItem('glint_current_params');
         const storedFilter = localStorage.getItem('glint_current_filter');
@@ -89,7 +87,7 @@ async function loadFromURL() {
             renderParams(currentParams);
             lastAppliedParams = JSON.stringify(currentParams);
             updateApplyButtonState();
-            return; // Exit early, we loaded from storage
+            return;
         }
         filterName = 'none';
     }
@@ -160,7 +158,6 @@ if (uploadForm) {
     };
 }
 
-// .cube LUT Loading
 const lutInput = document.getElementById('lut-input');
 const applyLutBtn = document.getElementById('apply-lut-btn');
 if (applyLutBtn) {
@@ -176,12 +173,17 @@ if (applyLutBtn) {
         
         try {
             const resp = await fetch('/upload-lut', { method: 'POST', body: formData });
+            if (!resp.ok) {
+                const errData = await resp.json();
+                throw new Error(errData.detail || 'LUT application failed');
+            }
             const data = await resp.json();
             const img = document.getElementById('filtered-img');
-            if (img) img.src = data.image;
+            if (img && data.image) img.src = data.image;
             console.info(".cube LUT applied successfully");
         } catch (err) {
             console.error('LUT application failed:', err);
+            alert('LUT Error: ' + err.message);
         } finally {
             showLoading(false);
         }
@@ -331,7 +333,7 @@ async function applyFilter() {
             signal: applyController.signal
         });
         const data = await resp.json();
-        if (img) {
+        if (img && data.image) {
             img.onload = () => img.classList.remove('loading');
             img.src = data.image;
         }
@@ -376,14 +378,14 @@ if (aiForm) {
                 signal: aiController.signal
             });
             const data = await resp.json();
-            console.log("Response Data:", data);
-            console.log(`Execution Time: ${(performance.now() - startTime).toFixed(2)}ms`);
             
-            currentParams = { ...currentParams, ...data.params };
-            renderParams(currentParams);
-            await applyFilter();
-            updateURL();
-            if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
+            if (data.params) {
+                currentParams = { ...currentParams, ...data.params };
+                renderParams(currentParams);
+                await applyFilter();
+                updateURL();
+                if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
+            }
         } catch (err) {
             if (err.name === 'AbortError') {
                 console.info("AI Request Aborted");
@@ -426,16 +428,15 @@ if (textPromptForm) {
                 signal: aiController.signal
             });
             const data = await resp.json();
-            console.log("Response Data:", data);
-            console.log(`Execution Time: ${(performance.now() - startTime).toFixed(2)}ms`);
             
-            generatedParams = data.params;
-            currentParams = { ...currentParams, ...generatedParams };
-            renderParams(currentParams);
-            await applyFilter();
-            updateURL();
-
-            if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
+            if (data.params) {
+                generatedParams = data.params;
+                currentParams = { ...currentParams, ...generatedParams };
+                renderParams(currentParams);
+                await applyFilter();
+                updateURL();
+                if (statusBox) statusBox.textContent = "Applied:\n" + JSON.stringify(data.params, null, 2);
+            }
         } catch (err) {
             if (err.name === 'AbortError') {
                 console.info("AI Request Aborted");
@@ -462,9 +463,7 @@ if (savePromptBtn) {
             body: JSON.stringify({ name, params: currentParams })
         });
         if (resp.ok) {
-            const data = await resp.json();
             nameInput.value = '';
-            // Add to UI grid immediately
             filters.push([name, 'Custom filter']);
             buildFiltersGrid();
             console.info("Preset saved successfully");

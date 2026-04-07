@@ -1,5 +1,5 @@
 """
-Pre-built filter presets refined with Pro-Pop levers.
+Pre-built filter presets refined with Pro-Pop levers and expanded semantic coverage.
 """
 
 import json
@@ -38,6 +38,112 @@ FILTERS: dict[str, FilterParams] = {
         "highlights": 0.05,
         "vignette": 0.15,
     },
+    "glint-raw": {
+        "name": "Glint Raw",
+        "description": "Gritty micro-detail with a signature faded dynamic range",
+        "contrast": 1.25,
+        "brightness": -0.05,
+        "fade": 0.25,
+        "grain": 0.3,
+        "clarity": 0.15,
+        "texture": 0.2,
+        "sharpen": 0.15,
+        "highlights": -0.15,
+        "shadows": 0.15,
+    },
+    "portra-400": {
+        "name": "Portra 400",
+        "description": "Professional portrait film: warm skin tones and soft contrast",
+        "contrast": 1.08,
+        "saturation": 0.9,
+        "vibrance": 0.25,
+        "temperature": 0.08,
+        "tint": {"r": 0.05, "g": 0.0, "b": -0.02},
+        "highlights": -0.05,
+        "shadows": 0.1,
+        "fade": 0.15,
+        "grain": 0.1,
+    },
+    "gold-200": {
+        "name": "Gold 200",
+        "description": "Classic warm nostalgia with golden highlights",
+        "contrast": 1.15,
+        "saturation": 1.05,
+        "vibrance": 0.15,
+        "temperature": 0.15,
+        "tint": {"r": 0.08, "g": 0.05, "b": -0.05},
+        "highlights": 0.05,
+        "grain": 0.2,
+    },
+    "velvia-vivid": {
+        "name": "Velvia Vivid",
+        "description": "High-saturation landscape film with deep greens and sky blues",
+        "contrast": 1.3,
+        "saturation": 1.2,
+        "vibrance": 0.3,
+        "dehaze": 0.2,
+        "clarity": 0.1,
+        "temperature": -0.02,
+        "highlights": 0.05,
+    },
+    "tri-x-pro": {
+        "name": "Tri-X Pro",
+        "description": "Professional gritty B&W with silver-like highlights",
+        "contrast": 1.4,
+        "saturation": 0.0,
+        "clarity": 0.25,
+        "texture": 0.2,
+        "sharpen": 0.15,
+        "grain": 0.3,
+        "vignette": 0.2,
+    },
+    "cyber-neon": {
+        "name": "Cyber Neon",
+        "description": "Deep blues and electric pinks for urban night shots",
+        "contrast": 1.25,
+        "saturation": 0.8,
+        "vibrance": 0.4,
+        "dehaze": 0.25,
+        "texture": 0.2,
+        "temperature": -0.15,
+        "tint": {"r": 0.1, "g": -0.05, "b": 0.15},
+        "shadows": 0.1,
+    },
+    "dreamcore": {
+        "name": "Dreamcore",
+        "description": "Liminal, ethereal soft focus with a pastel haze",
+        "contrast": 0.85,
+        "brightness": 0.05,
+        "vibrance": 0.2,
+        "fade": 0.35,
+        "clarity": -0.3,
+        "dehaze": -0.15,
+        "temperature": 0.05,
+        "grain": 0.15,
+    },
+    "brutalist": {
+        "name": "Brutalist",
+        "description": "Cold architectural grit: low saturation, high local contrast",
+        "contrast": 1.2,
+        "saturation": 0.5,
+        "vibrance": -0.2,
+        "clarity": 0.35,
+        "texture": 0.25,
+        "temperature": -0.1,
+        "dehaze": 0.1,
+    },
+    "nordic-cool": {
+        "name": "Nordic Cool",
+        "description": "Desaturated, blue-shifted landscape with sharp detail",
+        "contrast": 1.1,
+        "saturation": 0.7,
+        "vibrance": -0.1,
+        "temperature": -0.2,
+        "tint": {"r": -0.05, "g": 0.0, "b": 0.05},
+        "clarity": 0.15,
+        "texture": 0.1,
+        "sharpen": 0.1,
+    },
     "forest-fog": {
         "name": "Forest Fog",
         "description": "Volumetric mist and moody greens",
@@ -52,22 +158,9 @@ FILTERS: dict[str, FilterParams] = {
         "shadows": 0.1,
         "vignette": 0.25,
     },
-    "glint-raw": {
-        "name": "Glint Raw",
-        "description": "Gritty micro-detail with a signature faded dynamic range",
-        "contrast": 1.25,
-        "brightness": -0.05,
-        "fade": 0.25,
-        "grain": 0.3,
-        "clarity": 0.15,
-        "texture": 0.2,
-        "sharpen": 0.15,
-        "highlights": -0.15,
-        "shadows": 0.15,
-    },
     "tokyo-night": {
         "name": "Tokyo Night",
-        "description": "Cyberpunk cityscapes with piercing neon",
+        "description": "Moody city vibes with teal/green tones",
         "contrast": 1.2,
         "saturation": 0.85,
         "vibrance": 0.25,
@@ -91,7 +184,7 @@ FILTERS: dict[str, FilterParams] = {
     },
     "industrial": {
         "name": "Industrial",
-        "description": "Cold, sharp, and high-clarity architectural grit",
+        "description": "Sharp, high-clarity architectural grit",
         "contrast": 1.15,
         "saturation": 0.6,
         "vibrance": -0.1,
@@ -167,6 +260,58 @@ FILTERS: dict[str, FilterParams] = {
         "temperature": 0.15,
         "brightness": 0.03,
     },
+    "juno": {
+        "name": "Juno",
+        "description": "Teal shadows and warm highlights",
+        "contrast": 1.1,
+        "saturation": 1.1,
+        "temperature": 0.08,
+        "tint": {"r": 0.05, "g": -0.05, "b": -0.08},
+        "shadows": 0.1,
+        "highlights": 0.05,
+    },
+    "lark": {
+        "name": "Lark",
+        "description": "Faded, desaturated, misty look",
+        "contrast": 0.9,
+        "saturation": 0.75,
+        "fade": 0.3,
+        "brightness": 0.05,
+        "temperature": -0.03,
+    },
+    "gingham": {
+        "name": "Gingham",
+        "description": "Light, airy, warm brightness",
+        "contrast": 0.95,
+        "saturation": 0.85,
+        "brightness": 0.08,
+        "temperature": 0.06,
+        "fade": 0.15,
+    },
+    "moon": {
+        "name": "Moon",
+        "description": "High contrast black and white",
+        "contrast": 1.4,
+        "saturation": 0.0,
+        "brightness": -0.05,
+    },
+    "ludwig": {
+        "name": "Ludwig",
+        "description": "Slightly desaturated with warm shadows",
+        "contrast": 1.05,
+        "saturation": 0.9,
+        "fade": 0.15,
+        "temperature": 0.05,
+        "tint": {"r": 0.03, "g": 0.0, "b": -0.02},
+    },
+    "noir": {
+        "name": "Noir",
+        "description": "Dramatic high contrast black and white",
+        "contrast": 1.5,
+        "saturation": 0.0,
+        "brightness": -0.05,
+        "vignette": 0.3,
+    },
 }
 
 
@@ -184,14 +329,9 @@ def _load_custom_filters() -> dict[str, FilterParams]:
 
 def list_filters() -> list[tuple[str, str]]:
     """Return list of (name, description) tuples."""
-    # Start with a copy of built-in filters
     all_filters = FILTERS.copy()
-
-    # Merge custom filters
     custom = _load_custom_filters()
     all_filters.update(custom)
-
-    # Ensure "none" is always first for identity-first reset behavior
     items = list(all_filters.items())
     return [(k, v.get("description", "")) for k, v in items]
 
@@ -199,11 +339,7 @@ def list_filters() -> list[tuple[str, str]]:
 def get_filter(name: str) -> FilterParams | None:
     """Get filter by name, returns None if not found."""
     name_low = name.lower()
-
-    # Priority 1: Built-in filters
     if name_low in FILTERS:
         return FILTERS[name_low]
-
-    # Priority 2: Custom filters from disk
     custom = _load_custom_filters()
     return custom.get(name_low)
